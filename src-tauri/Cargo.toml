@@ -1,0 +1,13 @@
+[package]
+build = "build.rs"  # This line is crucial
+name = "yt-dl-tauri"
+version = "1.0.0"
+authors = ["Shannon huggins <x@ptr.me>"]
+edition = "2021"
+
+[dependencies]
+tauri = { version = "2.5.0", features = [] }
+
+[build-dependencies]
+tauri-build = { version = "2.0.0", features = [] }  # Add if missing
+[workspace]

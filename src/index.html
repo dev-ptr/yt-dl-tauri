@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Youtube Downloader</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h2>Youtube Downloader</h2>
+
+  <input id="urlInput" type="text" placeholder="Enter YouTube URL" />
+  <label><input type="checkbox" id="mp3Only" /> MP3 Only</label>
+
+  <button id="downloadBtn">Download</button>
+  <button id="quitBtn">Quit</button>
+
+  <h3>Output Log</h3>
+  <div id="log"></div>
+
+  <script type="module">
+    import { invoke } from '@tauri-apps/api/tauri'
+    import { listen } from '@tauri-apps/api/event'
+
+    const urlInput = document.getElementById('urlInput')
+    const mp3OnlyCheckbox = document.getElementById('mp3Only')
+    const downloadBtn = document.getElementById('downloadBtn')
+    const quitBtn = document.getElementById('quitBtn')
+    const log = document.getElementById('log')
+
+    downloadBtn.addEventListener('click', async () => {
+      const url = urlInput.value.trim()
+      if (!url) {
+        alert('Please enter a URL')
+        return
+      }
+      log.textContent = ''
+      try {
+        await invoke('download_url', { url, mp3_only: mp3OnlyCheckbox.checked })
+      } catch (error) {
+        log.textContent += `Error starting download: ${error}\n`
+      }
+    })
+
+    quitBtn.addEventListener('click', () => {
+      invoke('quit_app')
+    })
+
+    // Listen to logs sent from Rust backend
+    listen('download-log', event => {
+      log.textContent += event.payload + '\n'
+      log.scrollTop = log.scrollHeight
+    })
+
+    // Listen to download complete event
+    listen('download-complete', event => {
+      log.textContent += `Download process exited with code ${event.payload}\n`
+    })
+  </script>
+</body>
+</html>
