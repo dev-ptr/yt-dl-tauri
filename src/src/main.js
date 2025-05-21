@@ -1,24 +1,67 @@
-import './style.css'
-import javascriptLogo from './javascript.svg'
-import viteLogo from '/vite.svg'
-import { setupCounter } from './counter.js'
+import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 
-document.querySelector('#app').innerHTML = `
-  <div>
-    <a href="https://vite.dev" target="_blank">
-      <img src="${viteLogo}" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
-      <img src="${javascriptLogo}" class="logo vanilla" alt="JavaScript logo" />
-    </a>
-    <h1>Hello Vite!</h1>
-    <div class="card">
-      <button id="counter" type="button"></button>
-    </div>
-    <p class="read-the-docs">
-      Click on the Vite logo to learn more
-    </p>
-  </div>
-`
+// DOM elements
+const urlInput = document.getElementById('urlInput')
+const mp3OnlyCheckbox = document.getElementById('mp3Only')
+const downloadBtn = document.getElementById('downloadBtn')
+const quitBtn = document.getElementById('quitBtn')
+const log = document.getElementById('log')
 
-setupCounter(document.querySelector('#counter'))
+// State
+let isDownloading = false
+
+downloadBtn.addEventListener('click', async () => {
+  if (isDownloading) {
+    log.textContent += 'A download is already in progress\n'
+    return
+  }
+
+  const url = urlInput.value.trim()
+  if (!url) {
+    alert('Please enter a URL')
+    return
+  }
+
+  log.textContent = 'Starting download...\n'
+  isDownloading = true
+  downloadBtn.disabled = true
+
+  try {
+    await invoke('download_url', { 
+      url, 
+      mp3_only: mp3OnlyCheckbox.checked 
+    })
+  } catch (error) {
+    log.textContent += `Error starting download: ${error}\n`
+    isDownloading = false
+    downloadBtn.disabled = false
+  }
+})
+
+quitBtn.addEventListener('click', async () => {
+  try {
+    await invoke('quit_app')
+  } catch (error) {
+    console.error('Failed to quit:', error)
+  }
+})
+
+// Listen for download logs
+const unlistenLog = await listen('download-log', event => {
+  log.textContent += event.payload + '\n'
+  log.scrollTop = log.scrollHeight
+})
+
+// Listen for completion
+const unlistenComplete = await listen('download-complete', event => {
+  log.textContent += `\nProcess completed with code ${event.payload}\n`
+  isDownloading = false
+  downloadBtn.disabled = false
+})
+
+// Cleanup when needed (e.g., if using SPA)
+// window.addEventListener('beforeunload', () => {
+//   unlistenLog()
+//   unlistenComplete()
+// })

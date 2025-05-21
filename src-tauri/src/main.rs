@@ -13,7 +13,11 @@
   }
   
   #[tauri::command]
-  fn download_url(window: Window, url: String, mp3_only: bool) {
+  fn download_url(
+      window: Window,
+      url: String,
+      mp3_only: bool
+  ) {
     // Spawn a thread to avoid blocking UI
     thread::spawn(move || {
       let mut args = vec!["-o", "%(title)s.%(ext)s"];
@@ -25,12 +29,17 @@
       args.push(&url);
   
       // Spawn yt-dlp process
-      let mut child = Command::new("yt-dlp")
-        .args(&args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("failed to start yt-dlp process");
+      let mut child = match Command::new("yt-dlp")
+          .args(&args)
+          .stdout(Stdio::piped())
+          .stderr(Stdio::piped())
+          .spawn() {
+              Ok(child) => child,
+              Err(e) => {
+                  window.emit("download-error", format!("Failed to start yt-dlp: {}", e)).unwrap();
+                  return;
+              }
+          };
   
       let stdout = child.stdout.take().unwrap();
       let reader = BufReader::new(stdout);

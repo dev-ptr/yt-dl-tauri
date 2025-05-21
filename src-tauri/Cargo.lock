@@ -4515,6 +4515,7 @@ dependencies = [
 name = "yt-dl-tauri"
 version = "1.0.0"
 dependencies = [
+ "serde",
  "tauri",
  "tauri-build",
 ]
