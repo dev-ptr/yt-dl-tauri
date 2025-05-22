@@ -30,7 +30,7 @@ downloadBtn.addEventListener('click', async () => {
   try {
     await invoke('download_url', { 
       url, 
-      mp3_only: mp3OnlyCheckbox.checked 
+      mp3Only: mp3OnlyCheckbox.checked 
     })
   } catch (error) {
     log.textContent += `Error starting download: ${error}\n`
@@ -46,22 +46,28 @@ quitBtn.addEventListener('click', async () => {
     console.error('Failed to quit:', error)
   }
 })
+;(async () => {
+  await listen('download-progress', event => {
+    const percent = event.payload
+    log.textContent += `Progress: ${percent}%\n`
+    log.scrollTop = log.scrollHeight
+  })
 
-// Listen for download logs
-const unlistenLog = await listen('download-log', event => {
-  log.textContent += event.payload + '\n'
-  log.scrollTop = log.scrollHeight
-})
+  await listen('download-error', event => {
+    log.textContent += `ERROR: ${event.payload}\n`
+    isDownloading = false
+    downloadBtn.disabled = false
+  })
 
-// Listen for completion
-const unlistenComplete = await listen('download-complete', event => {
-  log.textContent += `\nProcess completed with code ${event.payload}\n`
-  isDownloading = false
-  downloadBtn.disabled = false
-})
+  await listen('download-log', event => {
+    console.log('[download-log]', event.payload)
+    log.textContent += event.payload + '\n'
+    log.scrollTop = log.scrollHeight
+  })
 
-// Cleanup when needed (e.g., if using SPA)
-// window.addEventListener('beforeunload', () => {
-//   unlistenLog()
-//   unlistenComplete()
-// })
+  await listen('download-complete', event => {
+    log.textContent += `\nDownload completed with code ${event.payload}\n`
+    isDownloading = false
+    downloadBtn.disabled = false
+  })
+})()
