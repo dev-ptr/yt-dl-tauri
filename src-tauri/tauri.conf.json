@@ -11,6 +11,7 @@
     "frontendDist": "src"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "tauri-new",
