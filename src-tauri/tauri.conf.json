@@ -16,7 +16,7 @@
       {
         "title": "tauri-new",
         "width": 800,
-        "height": 600,
+        "height": 900,
         "resizable": true,
         "fullscreen": false
       }

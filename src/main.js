@@ -3,6 +3,10 @@ import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog';
 
 // DOM elements
+const queue = [];
+let processing = false;
+
+const removeSelect = document.getElementById("removeSelect");
 const urlInput = document.getElementById('urlInput')
 const mp3OnlyCheckbox = document.getElementById('mp3Only')
 const downloadBtn = document.getElementById('downloadBtn')
@@ -40,27 +44,78 @@ downloadBtn.addEventListener('click', async () => {
     alert('Please enter a URL')
     return
   }
+  const mp3Only = mp3OnlyCheckbox.checked;
+  const item = { url, fPath, mp3Only };
+  queue.push(item);
+  updateQueueDisplay();
+  log.textContent += `Added to queue: ${url}`;
+  log.scrollTop = log.scrollHeight;
 
   log.textContent = 'Starting download...\n'
   log.scrollTop = log.scrollHeight;
 
   isDownloading = true
   downloadBtn.disabled = true
-
-  try {
-    await invoke('download_url', { 
-      url, 
-      fPath,
-      mp3Only: mp3OnlyCheckbox.checked 
-    })
-  } catch (error) {
-    log.textContent += `Error starting download: ${error}\n`
-    log.scrollTop = log.scrollHeight;
-    isDownloading = false
-    downloadBtn.disabled = false
+  if (!processing) {
+    processQueue();
   }
+
+
 })
 
+document.getElementById("removeBtn").addEventListener("click", () => {
+  const selected = Array.from(removeSelect.selectedOptions).map(opt => parseInt(opt.value, 10));
+  selected.sort((a, b) => b - a).forEach(i => {
+    if (i >= 0) queue.splice(i, 1);
+  });
+  updateQueueDisplay();
+});
+
+function updateQueueDisplay() {
+  removeSelect.innerHTML = "";
+  queue.forEach((item, index) => {
+    const opt = document.createElement("option");
+    opt.value = index;
+    opt.text = item.url;
+    removeSelect.appendChild(opt);
+  });
+}
+
+
+async function processQueue() {
+  processing = true;
+
+  while (queue.length > 0) {
+    const item = queue.shift(); // Get first item
+    updateQueueDisplay();
+    log.textContent += `Processing  ${item.url}...\n`
+    log.scrollTop = log.scrollHeight;
+    try {
+      await processDownload(item); // Replace with real download logic
+      log.textContent += `Finished  ${item.url}\n`
+      log.scrollTop = log.scrollHeight;
+
+    } catch (err) {
+      log.textContent += `Failed to download ${item.url}: ${err.message}`
+      log.scrollTop = log.scrollHeight;
+
+    }
+  }
+
+  processing = false;
+}
+
+async function processDownload(item) {
+  try {
+    await invoke('download_url', {
+      url: item.url,
+      fPath: item.fPath,
+      mp3Only: item.mp3Only
+    });
+  } catch (error) {
+    throw new Error(`Download failed for ${item.url}: ${error}`);
+  }
+}
 quitBtn.addEventListener('click', async () => {
   try {
     await invoke('quit_app')
