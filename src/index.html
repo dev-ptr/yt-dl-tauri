@@ -7,8 +7,16 @@
 </head>
 <body>
   <h2>Youtube Downloader</h2>
-
+  <label for="urlInput">Youtube URL:</label>
   <input id="urlInput" type="text" placeholder="Enter YouTube URL" />
+<div class="folder-selection">
+  <label for="folderInput">Download to:</label>
+  <div class="folder-input-group">
+    <input id="folderInput" type="text" placeholder="Select download folder" readonly />
+    <button id="browseBtn">Browse</button>
+  </div>
+</div>
+  
   <label><input type="checkbox" id="mp3Only" /> MP3 Only</label>
 
   <button id="downloadBtn">Download</button>

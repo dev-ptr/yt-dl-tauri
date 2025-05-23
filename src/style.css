@@ -44,3 +44,22 @@ label {
   display: block;
   margin: 10px 0 5px;
 }
+.folder-selection {
+  margin: 10px 0;
+}
+
+.folder-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.folder-input-group input[type="text"] {
+  flex: 1;
+  padding: 6px;
+}
+
+.folder-input-group button {
+  white-space: nowrap;
+}

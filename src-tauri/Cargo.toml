@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 tauri = { version = "2.5.0", features = [] }
 dirs-next = "2"
+tauri-plugin-dialog = "2"
 
 [build-dependencies]
 tauri-build = { version = "2.0.0", features = [] }  # Add if missing

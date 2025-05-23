@@ -3,43 +3,34 @@
     windows_subsystem = "windows"
 )]
 
-use tauri::Window; 
-
+use tauri::Window;
 
 fn main() {
-  tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![download_url, quit_app])
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![download_url, quit_app])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }
-  
 
-
-use std::process::{Command, Stdio};
-use std::io::{BufRead, BufReader};
 use dirs_next::home_dir;
+use std::io::{BufRead, BufReader};
+use std::process::{Command, Stdio};
 use tauri::Emitter;
 
-
-
-  #[tauri::command]
-  fn quit_app(app_handle: tauri::AppHandle) {
-    app_handle.exit(0);
-  }
 #[tauri::command]
-async fn download_url(window: Window, url: String, mp3_only: bool) -> Result<(), String> {
-    // Get home directory for downloads
-    let home = home_dir().ok_or("Could not get home directory")?;
-    let output_template = format!("{}/%(title)s.%(ext)s", home.display());
+fn quit_app(app_handle: tauri::AppHandle) {
+    app_handle.exit(0);
+}
+#[tauri::command]
+async fn download_url(window: Window, url: String, f_path: String, mp3_only: bool) -> Result<(), String> {
+
+    let output_template = format!("{}/%(title)s.%(ext)s", f_path);
 
     // Build yt-dlp args
     let mut args = vec!["-o", &output_template, &url];
     if mp3_only {
-        args = vec![
-            "-x", "--audio-format", "mp3", 
-            "-o", &output_template,
-            &url
-        ];
+        args = vec!["-x", "--audio-format", "mp3", "-o", &output_template, &url];
     }
 
     let mut child = Command::new("yt-dlp")
@@ -73,7 +64,8 @@ async fn download_url(window: Window, url: String, mp3_only: bool) -> Result<(),
     }
 
     // Wait for process to exit
-    let status = child.wait()
+    let status = child
+        .wait()
         .map_err(|e| format!("Failed to wait on process: {}", e))?;
 
     let code = status.code().unwrap_or(-1);
@@ -81,7 +73,10 @@ async fn download_url(window: Window, url: String, mp3_only: bool) -> Result<(),
         let _ = window.emit("download-complete", code);
         Ok(())
     } else {
-        let _ = window.emit("download-error", format!("yt-dlp exited with code {}", code));
+        let _ = window.emit(
+            "download-error",
+            format!("yt-dlp exited with code {}", code),
+        );
         Err(format!("yt-dlp exited with code {}", code))
     }
 }
