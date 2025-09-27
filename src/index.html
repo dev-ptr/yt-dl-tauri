@@ -34,10 +34,16 @@
   </select>
   <button id="removeBtn">Remove Selected</button>
   <button id="clearQueueBtn">Clear Queue</button>
+  <button id="toggleLogBtn">▼ Show Log</button>
+
 
 </div>
+
+
+<div id="logContainer" style="display: none; max-height: 250px; overflow-y: auto;border:none;">
   <h3>Output Log</h3>
-  <div id="log"></div>
+  <pre id="log" style="margin: 0;"></pre>
+</div>
 
 <script type="module" src="./main.js"></script>
 </body>

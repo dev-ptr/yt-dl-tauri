@@ -3,34 +3,12 @@
     windows_subsystem = "windows"
 )]
 
-use tauri::{Window, Manager};
-use tauri::menu::MenuBuilder;
+use tauri::Window;
 fn main() {
     tauri::Builder::default()
-        .setup(|app| {
-            let menu = MenuBuilder::new(app)
-                .text("open", "Open")
-                .text("close", "Close")
-                .check("check_item", "Check Item")
-                .separator()
-                .text("disabled_item", "Disabled Item")
-                .text("status", "Status: Processing...")
-                .build()?;
-
-            if let Some(window) = app.get_webview_window("main") {
-                window.set_menu(menu.clone())?;
-            }
-
-            // Update individual menu item text
-            menu
-                .get("status")
-                .unwrap()
-                .as_menuitem_unchecked()
-                .set_text("Status: Ready")?;
-
-            Ok(())
-        })
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_opener::init())  
         .invoke_handler(tauri::generate_handler![download_url, quit_app])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

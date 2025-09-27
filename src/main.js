@@ -1,7 +1,38 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog';
+import { setupMenu } from "./menu.js";
+import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 
+let appWindow;
+(async () => {
+  appWindow = await getCurrentWindow();
+})();
+const toggleBtn = document.getElementById("toggleLogBtn");
+const logContainer = document.getElementById("logContainer");
+let isLogVisible = false;
+
+
+toggleBtn.addEventListener("click", async () => {
+  isLogVisible = !isLogVisible;
+
+  if (isLogVisible) {
+    logContainer.style.display = "block";
+    toggleBtn.textContent = "▲ Hide Log";
+
+    // expand window height
+    await appWindow.setSize(new LogicalSize(800, 720));
+
+  } else {
+    logContainer.style.display = "none";
+    toggleBtn.textContent = "▼ Show Log";
+
+    // shrink window height
+   await appWindow.setSize(new LogicalSize(800, 500));
+  }
+});
+
+setupMenu();
 // DOM elements
 const queue = [];
 let processing = false;
@@ -13,7 +44,6 @@ const sponsorblockCheckbox = document.getElementById('sponsorblock')
 const enablePlayistCheckbox = document.getElementById('enablePlaylist')
 const downloadBtn = document.getElementById('downloadBtn')
 const addToQueueBtn = document.getElementById('addToQueueBtn')
-const quitBtn = document.getElementById('quitBtn')
 const browseBtn = document.getElementById('browseBtn')
 const folderPath = document.getElementById('folderInput')
 const clearQueueBtn = document.getElementById('clearQueueBtn')
@@ -37,6 +67,15 @@ clearQueueBtn.addEventListener('click', async () => {
   queue.length = 0;  
   updateQueueDisplay();
 });
+async function hideLogContainer() {
+  const container = document.getElementById("logContainer");
+  container.style.display = "none";
+  logVisible = false;
+
+  const width = document.body.scrollWidth;
+  const height = document.body.scrollHeight;
+  await appWindow.setSize({ width, height });
+}
 
 addToQueueBtn.addEventListener('click', async () => {
   const fPath = folderPath.value.trim();
@@ -139,13 +178,7 @@ async function processDownload(item) {
     throw new Error(`Download failed for ${item.url}: ${error}`);
   }
 }
-quitBtn.addEventListener('click', async () => {
-  try {
-    await invoke('quit_app')
-  } catch (error) {
-    console.error('Failed to quit:', error)
-  }
-})
+
 ;(async () => {
   await listen('download-progress', event => {
     const percent = event.payload

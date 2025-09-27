@@ -8,6 +8,9 @@
   "permissions": [
     "core:event:default",
     "core:default",
-    "dialog:default"
+    "dialog:default",
+    "opener:allow-open-url",
+    "opener:default",
+    "core:window:allow-set-size"
   ]
 }

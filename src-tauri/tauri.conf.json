@@ -16,7 +16,7 @@
       {
         "title": "tauri-new",
         "width": 800,
-        "height": 800,
+        "height": 500,
         "resizable": true,
         "fullscreen": false
       }
@@ -35,6 +35,14 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "shell": {
+      "open": [
+        "https://ytdl-org.github.io/youtube-dl/supportedsites.html"
+      ]
+    }
   }
-
 }
+
+
