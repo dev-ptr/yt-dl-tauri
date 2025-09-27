@@ -95,8 +95,8 @@ addToQueueBtn.addEventListener('click', async () => {
   const sponsorblock = sponsorblockCheckbox.checked;
   const item = { url, fPath, mp3Only, enablePlaylist, sponsorblock };
 
-  queue.push(item);         // ✅ Push to queue first
-  updateQueueDisplay();     // ✅ THEN update the select
+  queue.push(item);
+  updateQueueDisplay();
 
   log.textContent += `Added to queue: ${url}\n`;
   log.scrollTop = log.scrollHeight;
@@ -151,7 +151,7 @@ async function processQueue() {
     log.textContent += `Processing  ${item.url}...\n`
     log.scrollTop = log.scrollHeight;
     try {
-      await processDownload(item); // Replace with real download logic
+      await processDownload(item);
       log.textContent += `Finished  ${item.url}\n`
       log.scrollTop = log.scrollHeight;
 
