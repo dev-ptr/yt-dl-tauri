@@ -7,23 +7,43 @@
 </head>
 <body>
   <h2>Youtube Downloader</h2>
-  <label for="urlInput">Youtube URL:</label>
+  <div class="checkbox-row">
+  <label for="urlInput" id="videoUrlLabel">Video URL:</label>
   <input id="urlInput" type="text" placeholder="Enter YouTube URL" />
-<div class="folder-selection">
+  <button id="addToQueueBtn">Add to queue</button>
+  </div>
+<div class="checkbox-row">
   <label for="folderInput">Download to:</label>
-  <div class="folder-input-group">
     <input id="folderInput" type="text" placeholder="Select download folder" readonly />
     <button id="browseBtn">Browse</button>
   </div>
 </div>
-  
+<div class="checkbox-row">
   <label><input type="checkbox" id="mp3Only" /> MP3 Only</label>
+  <label><input type="checkbox" id="enablePlaylist" /> Enable Playlist</label>
+  <label><input type="checkbox" id="sponsorblock" /> Sponsorblock</label>
+  <button id="downloadBtn">Process Queue</button>
 
-  <button id="downloadBtn">Download</button>
-  <button id="quitBtn">Quit</button>
+</div>
+  <h3>Download Queue</h3>
+  <ul id="queueList"></ul>
 
+<div id="queueControls">
+  <select id="removeSelect" multiple size="6">
+    <!-- Options added dynamically -->
+  </select>
+  <button id="removeBtn">Remove Selected</button>
+  <button id="clearQueueBtn">Clear Queue</button>
+  <button id="toggleLogBtn">▼ Show Log</button>
+
+
+</div>
+
+
+<div id="logContainer" style="display: none; max-height: 250px; overflow-y: auto;border:none;">
   <h3>Output Log</h3>
-  <div id="log"></div>
+  <pre id="log" style="margin: 0;"></pre>
+</div>
 
 <script type="module" src="src/js/main.js"></script>
 </body>

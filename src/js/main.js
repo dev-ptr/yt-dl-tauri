@@ -1,14 +1,52 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog';
+import { setupMenu } from "./menu.js";
+import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 
+let appWindow;
+(async () => {
+  appWindow = await getCurrentWindow();
+})();
+const toggleBtn = document.getElementById("toggleLogBtn");
+const logContainer = document.getElementById("logContainer");
+let isLogVisible = false;
+
+
+toggleBtn.addEventListener("click", async () => {
+  isLogVisible = !isLogVisible;
+
+  if (isLogVisible) {
+    logContainer.style.display = "block";
+    toggleBtn.textContent = "▲ Hide Log";
+
+    // expand window height
+    await appWindow.setSize(new LogicalSize(800, 720));
+
+  } else {
+    logContainer.style.display = "none";
+    toggleBtn.textContent = "▼ Show Log";
+
+    // shrink window height
+   await appWindow.setSize(new LogicalSize(800, 500));
+  }
+});
+
+setupMenu();
 // DOM elements
+const queue = [];
+let processing = false;
+
+const removeSelect = document.getElementById("removeSelect");
 const urlInput = document.getElementById('urlInput')
 const mp3OnlyCheckbox = document.getElementById('mp3Only')
+const sponsorblockCheckbox = document.getElementById('sponsorblock')
+const enablePlayistCheckbox = document.getElementById('enablePlaylist')
 const downloadBtn = document.getElementById('downloadBtn')
-const quitBtn = document.getElementById('quitBtn')
+const addToQueueBtn = document.getElementById('addToQueueBtn')
 const browseBtn = document.getElementById('browseBtn')
-const folderPath = document.getElementById('folderInput');
+const folderPath = document.getElementById('folderInput')
+const clearQueueBtn = document.getElementById('clearQueueBtn')
 
 
 const log = document.getElementById('log')
@@ -25,49 +63,122 @@ browseBtn.addEventListener('click', async () => {
     document.getElementById('folderInput').value = file;
   }
 });
-downloadBtn.addEventListener('click', async () => {
-  if (isDownloading) {
-    log.textContent += 'A download is already in progress\n'
-    return
-  }
-  const fPath = folderPath.value.trim()
+clearQueueBtn.addEventListener('click', async () => {
+  queue.length = 0;  
+  updateQueueDisplay();
+});
+async function hideLogContainer() {
+  const container = document.getElementById("logContainer");
+  container.style.display = "none";
+  logVisible = false;
+
+  const width = document.body.scrollWidth;
+  const height = document.body.scrollHeight;
+  await appWindow.setSize({ width, height });
+}
+
+addToQueueBtn.addEventListener('click', async () => {
+  const fPath = folderPath.value.trim();
   if (!fPath) {
     alert('Please select a download folder');
     return;
   }
-  const url = urlInput.value.trim()
+
+  const url = urlInput.value.trim();
   if (!url) {
-    alert('Please enter a URL')
-    return
+    alert('Please enter a URL');
+    return;
   }
 
-  log.textContent = 'Starting download...\n'
+  const mp3Only = mp3OnlyCheckbox.checked;
+  const enablePlaylist = enablePlayistCheckbox.checked;
+  const sponsorblock = sponsorblockCheckbox.checked;
+  const item = { url, fPath, mp3Only, enablePlaylist, sponsorblock };
+
+  queue.push(item);
+  updateQueueDisplay();
+
+  log.textContent += `Added to queue: ${url}\n`;
+  log.scrollTop = log.scrollHeight;
+  urlInput.value = ''
+
+
+})
+
+downloadBtn.addEventListener('click', async () => {
+  if (isDownloading) {
+    log.textContent += 'A download is already in progress\n'
+    return;
+  }
+  log.textContent += 'Starting download...\n';
   log.scrollTop = log.scrollHeight;
 
-  isDownloading = true
-  downloadBtn.disabled = true
+  isDownloading = true;
+  downloadBtn.disabled = true;
 
-  try {
-    await invoke('download_url', { 
-      url, 
-      fPath,
-      mp3Only: mp3OnlyCheckbox.checked 
-    })
-  } catch (error) {
-    log.textContent += `Error starting download: ${error}\n`
+  if (!processing) {
+    processQueue();
+  }
+});
+
+
+document.getElementById("removeBtn").addEventListener("click", () => {
+  const selected = Array.from(removeSelect.selectedOptions).map(opt => parseInt(opt.value, 10));
+  selected.sort((a, b) => b - a).forEach(i => {
+    if (i >= 0) queue.splice(i, 1);
+  });
+  updateQueueDisplay();
+});
+
+function updateQueueDisplay() {
+  console.log("Current queue:", queue);
+  removeSelect.innerHTML = ''; // Clear all existing options
+  queue.forEach((item, index) => {
+    const opt = document.createElement("option");
+    opt.value = index;
+    opt.text = item.url;
+    removeSelect.appendChild(opt);
+  });
+}
+
+
+async function processQueue() {
+  processing = true;
+
+  while (queue.length > 0) {
+    const item = queue.shift(); // Get first item
+    updateQueueDisplay();
+    log.textContent += `Processing  ${item.url}...\n`
     log.scrollTop = log.scrollHeight;
-    isDownloading = false
-    downloadBtn.disabled = false
-  }
-})
+    try {
+      await processDownload(item);
+      log.textContent += `Finished  ${item.url}\n`
+      log.scrollTop = log.scrollHeight;
 
-quitBtn.addEventListener('click', async () => {
-  try {
-    await invoke('quit_app')
-  } catch (error) {
-    console.error('Failed to quit:', error)
+    } catch (err) {
+      log.textContent += `Failed to download ${item.url}: ${err.message}`
+      log.scrollTop = log.scrollHeight;
+
+    }
   }
-})
+
+  processing = false;
+}
+
+async function processDownload(item) {
+  try {
+    await invoke('download_url', {
+      url: item.url,
+      fPath: item.fPath,
+      mp3Only: item.mp3Only,
+      enablePlaylist: item.enablePlaylist,
+      sponsorblock: item.sponsorblock
+    });
+  } catch (error) {
+    throw new Error(`Download failed for ${item.url}: ${error}`);
+  }
+}
+
 ;(async () => {
   await listen('download-progress', event => {
     const percent = event.payload
