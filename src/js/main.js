@@ -90,6 +90,11 @@ addToQueueBtn.addEventListener('click', async () => {
     return;
   }
 
+  if (queue.some(item => item.url === url)) {
+    alert('This URL is already in the queue. Skipping...');
+    return;
+  }
+
   const mp3Only = mp3OnlyCheckbox.checked;
   const enablePlaylist = enablePlayistCheckbox.checked;
   const sponsorblock = sponsorblockCheckbox.checked;
