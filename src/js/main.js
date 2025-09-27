@@ -21,14 +21,14 @@ toggleBtn.addEventListener("click", async () => {
     toggleBtn.textContent = "▲ Hide Log";
 
     // expand window height
-    await appWindow.setSize(new LogicalSize(800, 720));
+    await appWindow.setSize(new LogicalSize(800, 800));
 
   } else {
     logContainer.style.display = "none";
     toggleBtn.textContent = "▼ Show Log";
 
     // shrink window height
-   await appWindow.setSize(new LogicalSize(800, 500));
+   await appWindow.setSize(new LogicalSize(800, 600));
   }
 });
 
