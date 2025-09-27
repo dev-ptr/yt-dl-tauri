@@ -1,9 +1,9 @@
 {
   
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "tauri-new",
+  "productName": "ezdl",
   "version": "0.1.0",
-  "identifier": "yt-dlp.tauri.dev",
+  "identifier": "ezdl.tauri.dev",
   "build": {
     "beforeDevCommand": "cd src && npm install && npm run dev",
     "beforeBuildCommand": "cd src && npm install && npm run build",
@@ -14,7 +14,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "tauri-new",
+        "title": "ezdl",
         "width": 800,
         "height": 500,
         "resizable": true,
