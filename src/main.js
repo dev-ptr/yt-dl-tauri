@@ -32,36 +32,39 @@ browseBtn.addEventListener('click', async () => {
 downloadBtn.addEventListener('click', async () => {
   if (isDownloading) {
     log.textContent += 'A download is already in progress\n'
-    return
+    return;
   }
-  const fPath = folderPath.value.trim()
+
+  const fPath = folderPath.value.trim();
   if (!fPath) {
     alert('Please select a download folder');
     return;
   }
-  const url = urlInput.value.trim()
+
+  const url = urlInput.value.trim();
   if (!url) {
-    alert('Please enter a URL')
-    return
+    alert('Please enter a URL');
+    return;
   }
+
   const mp3Only = mp3OnlyCheckbox.checked;
   const item = { url, fPath, mp3Only };
-  queue.push(item);
-  updateQueueDisplay();
-  log.textContent += `Added to queue: ${url}`;
+
+  queue.push(item);         // ✅ Push to queue first
+  updateQueueDisplay();     // ✅ THEN update the select
+
+  log.textContent += `Added to queue: ${url}\n`;
+  log.textContent += 'Starting download...\n';
   log.scrollTop = log.scrollHeight;
 
-  log.textContent = 'Starting download...\n'
-  log.scrollTop = log.scrollHeight;
+  isDownloading = true;
+  downloadBtn.disabled = true;
 
-  isDownloading = true
-  downloadBtn.disabled = true
   if (!processing) {
     processQueue();
   }
+});
 
-
-})
 
 document.getElementById("removeBtn").addEventListener("click", () => {
   const selected = Array.from(removeSelect.selectedOptions).map(opt => parseInt(opt.value, 10));
@@ -72,7 +75,8 @@ document.getElementById("removeBtn").addEventListener("click", () => {
 });
 
 function updateQueueDisplay() {
-  removeSelect.innerHTML = "";
+  console.log("Current queue:", queue);
+  removeSelect.innerHTML = ''; // Clear all existing options
   queue.forEach((item, index) => {
     const opt = document.createElement("option");
     opt.value = index;

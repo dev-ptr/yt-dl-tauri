@@ -13,7 +13,6 @@ fn main() {
         .expect("error while running tauri application");
 }
 
-use dirs_next::home_dir;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use tauri::Emitter;
