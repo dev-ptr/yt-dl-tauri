@@ -92,6 +92,7 @@ addToQueueBtn.addEventListener('click', async () => {
 
   if (queue.some(item => item.url === url)) {
     alert('This URL is already in the queue. Skipping...');
+    urlInput.value = '';
     return;
   }
 
