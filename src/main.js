@@ -9,10 +9,14 @@ let processing = false;
 const removeSelect = document.getElementById("removeSelect");
 const urlInput = document.getElementById('urlInput')
 const mp3OnlyCheckbox = document.getElementById('mp3Only')
+const sponsorblockCheckbox = document.getElementById('sponsorblock')
+const enablePlayistCheckbox = document.getElementById('enablePlaylist')
 const downloadBtn = document.getElementById('downloadBtn')
+const addToQueueBtn = document.getElementById('addToQueueBtn')
 const quitBtn = document.getElementById('quitBtn')
 const browseBtn = document.getElementById('browseBtn')
-const folderPath = document.getElementById('folderInput');
+const folderPath = document.getElementById('folderInput')
+const clearQueueBtn = document.getElementById('clearQueueBtn')
 
 
 const log = document.getElementById('log')
@@ -29,12 +33,12 @@ browseBtn.addEventListener('click', async () => {
     document.getElementById('folderInput').value = file;
   }
 });
-downloadBtn.addEventListener('click', async () => {
-  if (isDownloading) {
-    log.textContent += 'A download is already in progress\n'
-    return;
-  }
+clearQueueBtn.addEventListener('click', async () => {
+  queue.length = 0;  
+  updateQueueDisplay();
+});
 
+addToQueueBtn.addEventListener('click', async () => {
   const fPath = folderPath.value.trim();
   if (!fPath) {
     alert('Please select a download folder');
@@ -48,12 +52,25 @@ downloadBtn.addEventListener('click', async () => {
   }
 
   const mp3Only = mp3OnlyCheckbox.checked;
-  const item = { url, fPath, mp3Only };
+  const enablePlaylist = enablePlayistCheckbox.checked;
+  const sponsorblock = sponsorblockCheckbox.checked;
+  const item = { url, fPath, mp3Only, enablePlaylist, sponsorblock };
 
   queue.push(item);         // ✅ Push to queue first
   updateQueueDisplay();     // ✅ THEN update the select
 
   log.textContent += `Added to queue: ${url}\n`;
+  log.scrollTop = log.scrollHeight;
+  urlInput.value = ''
+
+
+})
+
+downloadBtn.addEventListener('click', async () => {
+  if (isDownloading) {
+    log.textContent += 'A download is already in progress\n'
+    return;
+  }
   log.textContent += 'Starting download...\n';
   log.scrollTop = log.scrollHeight;
 
@@ -114,7 +131,9 @@ async function processDownload(item) {
     await invoke('download_url', {
       url: item.url,
       fPath: item.fPath,
-      mp3Only: item.mp3Only
+      mp3Only: item.mp3Only,
+      enablePlaylist: item.enablePlaylist,
+      sponsorblock: item.sponsorblock
     });
   } catch (error) {
     throw new Error(`Download failed for ${item.url}: ${error}`);

@@ -3,16 +3,38 @@
     windows_subsystem = "windows"
 )]
 
-use tauri::Window;
-
+use tauri::{Window, Manager};
+use tauri::menu::MenuBuilder;
 fn main() {
     tauri::Builder::default()
+        .setup(|app| {
+            let menu = MenuBuilder::new(app)
+                .text("open", "Open")
+                .text("close", "Close")
+                .check("check_item", "Check Item")
+                .separator()
+                .text("disabled_item", "Disabled Item")
+                .text("status", "Status: Processing...")
+                .build()?;
+
+            if let Some(window) = app.get_webview_window("main") {
+                window.set_menu(menu.clone())?;
+            }
+
+            // Update individual menu item text
+            menu
+                .get("status")
+                .unwrap()
+                .as_menuitem_unchecked()
+                .set_text("Status: Ready")?;
+
+            Ok(())
+        })
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![download_url, quit_app])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use tauri::Emitter;
@@ -22,15 +44,41 @@ fn quit_app(app_handle: tauri::AppHandle) {
     app_handle.exit(0);
 }
 #[tauri::command]
-async fn download_url(window: Window, url: String, f_path: String, mp3_only: bool) -> Result<(), String> {
+async fn download_url(
+    window: Window, 
+    url: String, 
+    f_path: String, 
+    mp3_only: bool, 
+    enable_playlist: bool, 
+    sponsorblock: bool) -> Result<(), String> {
 
     let output_template = format!("{}/%(title)s.%(ext)s", f_path);
 
-    // Build yt-dlp args
-    let mut args = vec!["-o", &output_template, &url];
+    let mut args = vec![
+        "-o", &output_template,
+        &url,
+    ];
+
+    // mp3 only
     if mp3_only {
-        args = vec!["-x", "--audio-format", "mp3", "-o", &output_template, &url];
+        args.push("-x");
+        args.push("--audio-format");
+        args.push("mp3");
     }
+
+    // playlist
+    if enable_playlist {
+        args.push("--yes-playlist");
+    } else {
+        args.push("--no-playlist");
+    }
+
+    // sponsorblock (yt-dlp has sponsorblock integration)
+    if sponsorblock {
+        args.push("--sponsorblock-remove");
+        args.push("all"); // you can also specify categories like "sponsor,intro,outro"
+    }
+
 
     let mut child = Command::new("yt-dlp")
         .args(&args)

@@ -6,8 +6,8 @@ body {
 }
 
 input[type="text"] {
-  width: 100%;
   box-sizing: border-box;
+  width:520px;
   padding: 8px;
   background-color: #2b2b2b;
   color: #f0f0f0;
@@ -22,7 +22,11 @@ button {
   border: 1px solid #555;
   cursor: pointer;
 }
-
+.checkbox-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
 button:hover {
   background-color: #444;
 }
@@ -30,6 +34,9 @@ button:hover {
   width: 100%;
   padding: 10px;
   margin-top: 10px;
+  font-size:20px;
+  font-weight:bold;
+  color:#FFFFFF;
   background-color: #333;
   box-sizing: border-box;
   border: 1px solid #555;
@@ -46,7 +53,9 @@ button:hover {
   padding: 10px;
   margin-top: 10px;
 }
-
+#urlInput{
+  margin-left:12px;
+}
 label {
   display: block;
   margin: 10px 0 5px;
@@ -58,14 +67,10 @@ label {
 .folder-input-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   margin-top: 4px;
 }
 
-.folder-input-group input[type="text"] {
-  flex: 1;
-  padding: 6px;
-}
 
 .folder-input-group button {
   white-space: nowrap;
