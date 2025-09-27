@@ -3,20 +3,6 @@ import { exit } from "@tauri-apps/plugin-process";
 import { openUrl } from '@tauri-apps/plugin-opener';
 
 export async function setupMenu() {
-  const aboutSubmenu = await Submenu.new({
-    text: "About",
-    items: [
-      await MenuItem.new({
-        id: "quit",
-        text: "Quit",
-        action: () => {
-          console.log("Quit pressed");
-          exit(0);
-        },
-      }),
-    ],
-  });
-
   const fileSubmenu = await Submenu.new({
     text: "File",
     items: [
@@ -60,7 +46,7 @@ export async function setupMenu() {
   });
 
   const menu = await Menu.new({
-    items: [aboutSubmenu, fileSubmenu, editSubmenu],
+    items: [fileSubmenu, editSubmenu],
   });
 
   await menu.setAsAppMenu();
