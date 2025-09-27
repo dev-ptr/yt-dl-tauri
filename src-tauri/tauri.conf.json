@@ -5,10 +5,10 @@
   "version": "0.1.0",
   "identifier": "ezdl.tauri.dev",
   "build": {
-    "beforeDevCommand": "cd src && npm install && npm run dev",
-    "beforeBuildCommand": "cd src && npm install && npm run build",
+    "beforeDevCommand": "npm install && npm run dev",
+    "beforeBuildCommand": "npm install && npm run build",
     "devUrl": "http://localhost:5173",
-    "frontendDist": "../src/dist"
+    "frontendDist": "../dist"
   },
   "app": {
     "withGlobalTauri": true,

@@ -3,17 +3,18 @@
   "version": "1.0.0",
   "description": "YouTube-DL Downloader GUI using Tauri",
   "scripts": {
+    "dev": "vite",
     "start": "tauri dev",
     "build": "vite build",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "preview": "vite preview"
   },
-  "devDependencies": {
-    "@tauri-apps/api": "^1.6.0",
-    "@tauri-apps/cli": "^1.4.0",
-    "vite": "^4.0.0"
-  },
+  "devDependencies": {},
   "dependencies": {
     "@tauri-apps/plugin-dialog": "^2.2.2",
-    "@tauri-apps/plugin-shell": "^2.3.1"
+    "@tauri-apps/plugin-shell": "^2.3.1",
+    "@tauri-apps/cli": "^1.4.0",
+    "vite": "^4.0.0",
+    "@tauri-apps/api": "^2.5.0"
   }
 }
