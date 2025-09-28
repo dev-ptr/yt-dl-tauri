@@ -77,22 +77,14 @@ const addToQueueBtn = document.getElementById('addToQueueBtn')
 const browseBtn = document.getElementById('browseBtn')
 const folderPath = document.getElementById('folderInput')
 const clearQueueBtn = document.getElementById('clearQueueBtn')
-
-
 const log = document.getElementById('log')
+const statusText = document.getElementById("statusText");
+const statusPercent = document.getElementById("statusPercent");
 
-// State
-let isDownloading = false
+let isDownloading = false;
+let currentItem = null; // 👈 track active item
 
-browseBtn.addEventListener('click', async () => {
-  const file = await open({
-    multiple: false,
-    directory: true,
-  });
-  if (file) {
-    document.getElementById('folderInput').value = file;
-  }
-});
+
 clearQueueBtn.addEventListener('click', async () => {
   queue.length = 0;  
   updateQueueDisplay();
@@ -103,10 +95,11 @@ async function hideLogContainer() {
   const container = document.getElementById("logContainer");
   container.style.display = "none";
   logVisible = false;
-
-  const width = document.body.scrollWidth;
-  const height = document.body.scrollHeight;
-  await appWindow.setSize({ width, height });
+}
+// Reset status bar
+function resetStatus() {
+  statusText.textContent = "Status: Idle";
+  statusPercent.textContent = "";
 }
 async function saveQueueToStorage() {
   try {
@@ -161,35 +154,42 @@ async function loadQueueFromStorage() {
   }
 }
 
+// Browse for folder
+browseBtn.addEventListener('click', async () => {
+  const file = await open({ multiple: false, directory: true });
+  if (file) folderPath.value = file;
+});
+
+
+
+// Add to queue
 addToQueueBtn.addEventListener('click', async () => {
   const fPath = folderPath.value.trim();
-  if (!fPath) {
-    alert('Please select a download folder');
-    return;
-  }
+  if (!fPath) return alert('Please select a download folder');
 
   const url = urlInput.value.trim();
-  if (!url) {
-    alert('Please enter a URL');
-    return;
+  if (!url) return alert('Please enter a URL');
+
+  let title = url;
+  try {
+    title = await invoke('fetch_video_title', { url });
+  } catch (e) {
+    console.warn('Could not fetch title, falling back to URL');
   }
 
-  if (queue.some(item => item.url === url)) {
-    alert('This URL is already in the queue. Skipping...');
-    urlInput.value = '';
-    return;
-  }
-
-  const mp3Only = mp3OnlyCheckbox.checked;
-  const enablePlaylist = enablePlayistCheckbox.checked;
-  const sponsorblock = sponsorblockCheckbox.checked;
-  const item = { url, fPath, mp3Only, enablePlaylist, sponsorblock };
+  const item = { 
+    url, title, fPath,
+    mp3Only: mp3OnlyCheckbox.checked,
+    enablePlaylist: enablePlayistCheckbox.checked,
+    sponsorblock: sponsorblockCheckbox.checked,
+    progress: 0
+  };
 
   queue.push(item);
   updateQueueDisplay();
   await saveQueueToStorage();
 
-  log.textContent += `Added to queue: ${url}\n`;
+  log.textContent += `Added to queue: ${title}\n`;
   log.scrollTop = log.scrollHeight;
   urlInput.value = ''
 });
@@ -220,13 +220,13 @@ document.getElementById("removeBtn").addEventListener("click", async () => {
   await saveQueueToStorage();
 });
 
+// Update queue select box
 function updateQueueDisplay() {
-  console.log("Current queue:", queue);
-  removeSelect.innerHTML = ''; // Clear all existing options
+  removeSelect.innerHTML = '';
   queue.forEach((item, index) => {
     const opt = document.createElement("option");
     opt.value = index;
-    opt.text = item.url;
+    opt.text = item.title || item.url;
     removeSelect.appendChild(opt);
   });
 }
@@ -235,26 +235,26 @@ async function processQueue() {
   processing = true;
 
   while (queue.length > 0) {
-    const item = queue.shift(); // Get first item
+    currentItem = queue.shift();
     updateQueueDisplay();
-    log.textContent += `Processing  ${item.url}...\n`
-    log.scrollTop = log.scrollHeight;
+
+    statusText.textContent = `Processing "${currentItem.title}"…`;
+    statusPercent.textContent = "";
+
     try {
-      await processDownload(item);
-      log.textContent += `Finished  ${item.url}\n`
-      log.scrollTop = log.scrollHeight;
-
+      await processDownload(currentItem);
     } catch (err) {
-      log.textContent += `Failed to download ${item.url}: ${err.message}`
-      log.scrollTop = log.scrollHeight;
-
+      // already handled by listeners
     }
     await saveQueueToStorage();
   }
 
+  currentItem = null;
+  resetStatus();
   processing = false;
 }
 
+// Trigger backend download
 async function processDownload(item) {
   try {
     await invoke('download_url', {
@@ -269,30 +269,47 @@ async function processDownload(item) {
   }
 }
 
-;(async () => {
-  await listen('download-progress', event => {
-    const percent = event.payload
-    log.textContent += `Progress: ${percent}%\n`
-    log.scrollTop = log.scrollHeight
-  })
+// 🔹 Event listeners
+await listen('download-progress', event => {
+  const percent = event.payload;
+  const rawTitle = currentItem?.title || currentItem?.url || "Unknown";
 
-  await listen('download-error', event => {
-    log.textContent += `ERROR: ${event.payload}\n`
-    log.scrollTop = log.scrollHeight;
-    isDownloading = false
-    downloadBtn.disabled = false
-  })
+  statusText.textContent = `Downloading "${rawTitle}"`;
+  statusPercent.textContent = `${percent}%`;
 
-  await listen('download-log', event => {
-    console.log('[download-log]', event.payload)
-    log.textContent += event.payload + '\n'
-    log.scrollTop = log.scrollHeight
-  })
+  log.textContent += `Progress: ${percent}%\n`;
+  log.scrollTop = log.scrollHeight;
+});
 
-  await listen('download-complete', event => {
-    log.textContent += `\nDownload completed with code ${event.payload}\n`
-    log.scrollTop = log.scrollHeight;
-    isDownloading = false
-    downloadBtn.disabled = false
-  })
-})()
+await listen('download-complete', event => {
+  const rawTitle = currentItem?.title || currentItem?.url || "Unknown";
+  statusText.textContent = `✅ Completed "${rawTitle}"`;
+  statusPercent.textContent = "";
+
+  log.textContent += `Download completed with code ${event.payload}\n`;
+  log.scrollTop = log.scrollHeight;
+
+  isDownloading = false;
+  downloadBtn.disabled = false;
+});
+
+await listen('download-error', event => {
+  const rawTitle = currentItem?.title || currentItem?.url || "Unknown";
+  statusText.textContent = `❌ Failed "${rawTitle}"`;
+  statusPercent.textContent = "";
+
+  log.textContent += `ERROR: ${event.payload}\n`;
+  log.scrollTop = log.scrollHeight;
+
+  isDownloading = false;
+  downloadBtn.disabled = false;
+});
+
+await listen('download-log', event => {
+  console.log('[download-log]', event.payload)
+  log.textContent += event.payload + '\n'
+  log.scrollTop = log.scrollHeight
+});
+
+// init
+resetStatus();

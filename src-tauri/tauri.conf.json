@@ -39,7 +39,7 @@
   "plugins": {
     "shell": {
       "open": [
-        "https://ytdl-org.github.io/youtube-dl/supportedsites.html"
+        "https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md"
       ]
     }
   }

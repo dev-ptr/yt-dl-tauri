@@ -42,7 +42,7 @@ export async function setupMenu() {
         text: "Supported Sites",
         action: async () => {
             try {
-            await openUrl("https://ytdl-org.github.io/youtube-dl/supportedsites.html");
+            await openUrl("https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md");
             } catch (err) {
             console.error("Failed to open URL:", err);
             }

@@ -35,6 +35,28 @@ button {
 button:hover {
   background-color: #444;
 }
+#statusBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 4px 8px;
+  font-family: sans-serif;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+#statusText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#statusPercent {
+  margin-left: 8px;
+  font-weight: bold;
+}
 #removeSelect{
   width: 100%;
   padding: 10px;
