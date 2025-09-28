@@ -38,8 +38,9 @@ button:hover {
 #statusBar {
   display: flex;
   justify-content: space-between;
+  margin-top: 10px;
   align-items: center;
-  width: 100%;
+  width: 98%;
   padding: 4px 8px;
   font-family: sans-serif;
   border: 1px solid #ccc;
