@@ -3,16 +3,26 @@
     windows_subsystem = "windows"
 )]
 
+mod config;
+use config::{ConfigManager, UserConfig};
+
 use tauri::Window;
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())  
-        .invoke_handler(tauri::generate_handler![download_url, quit_app])
+        .invoke_handler(tauri::generate_handler![
+            download_url, 
+            quit_app,
+            get_config,
+            update_config,
+            get_download_dir
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use tauri::Emitter;
@@ -20,6 +30,21 @@ use tauri::Emitter;
 #[tauri::command]
 fn quit_app(app_handle: tauri::AppHandle) {
     app_handle.exit(0);
+}
+
+#[tauri::command]
+fn get_config(app_handle: tauri::AppHandle) -> Result<UserConfig, String> {
+    ConfigManager::load_config(&app_handle)
+}
+
+#[tauri::command]
+fn update_config(app_handle: tauri::AppHandle, new_config: UserConfig) -> Result<(), String> {
+    ConfigManager::save_config(&app_handle, &new_config)
+}
+
+#[tauri::command]
+fn get_download_dir(app_handle: tauri::AppHandle) -> Result<String, String> {
+    ConfigManager::get_download_dir(&app_handle)
 }
 #[tauri::command]
 async fn download_url(
