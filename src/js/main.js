@@ -84,23 +84,6 @@ const statusPercent = document.getElementById("statusPercent");
 let isDownloading = false;
 let currentItem = null; // 👈 track active item
 
-<<<<<<< HEAD
-=======
-// Toggle log panel
-let isLogVisible = false;
-toggleBtn.addEventListener("click", async () => {
-  isLogVisible = !isLogVisible;
-  if (isLogVisible) {
-    logContainer.style.display = "block";
-    toggleBtn.textContent = "▲ Hide Log";
-    await appWindow.setSize(new LogicalSize(820, 870));
-  } else {
-    logContainer.style.display = "none";
-    toggleBtn.textContent = "▼ Show Log";
-    await appWindow.setSize(new LogicalSize(820, 650));
-  }
-});
->>>>>>> b9e831e (3: updated size of width)
 
 clearQueueBtn.addEventListener('click', async () => {
   queue.length = 0;  
@@ -287,6 +270,7 @@ async function processDownload(item) {
 }
 
 // 🔹 Event listeners
+(async () => {
 await listen('download-progress', event => {
   const percent = event.payload;
   const rawTitle = currentItem?.title || currentItem?.url || "Unknown";
@@ -327,6 +311,7 @@ await listen('download-log', event => {
   log.textContent += event.payload + '\n'
   log.scrollTop = log.scrollHeight
 });
+})()
 
 // init
 resetStatus();
