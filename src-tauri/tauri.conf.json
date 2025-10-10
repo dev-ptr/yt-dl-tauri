@@ -15,8 +15,8 @@
     "windows": [
       {
         "title": "ezdl",
-        "width": 800,
-        "height": 600,
+        "width": 820,
+        "height": 650,
         "resizable": true,
         "fullscreen": false
       }
@@ -39,7 +39,7 @@
   "plugins": {
     "shell": {
       "open": [
-        "https://ytdl-org.github.io/youtube-dl/supportedsites.html"
+        "https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md"
       ]
     }
   }
