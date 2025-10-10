@@ -45,7 +45,7 @@ class SettingsManager {
       
       this.downloadDirInput.value = config.download_dir || '';
       this.fontSizeInput.value = config.font_size || 14;
-      this.rememberQueueCheckbox.checked = config.remember_queue || false;
+      this.rememberQueueCheckbox.checked = config.remember_queue || true;
       
       this.updateFontSizePreview();
     } catch (error) {
