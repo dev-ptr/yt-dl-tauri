@@ -124,6 +124,10 @@ async fn download_url(
         let l = line.trim_end().to_string();
         let _ = window.emit("download-log", l.clone());
 
+        if l.contains("[download]") && l.contains("Destination:") {
+            last_percent = 0; // Reset for actual download phase
+        }
+
         if let Some(p) = parse_progress_percent(&l) {
             let p = p.min(100);
             if p > last_percent {
@@ -133,7 +137,7 @@ async fn download_url(
         }
 
         line.clear();
-    }
+}
 
     if let Some(stderr) = child.stderr.take() {
         std::thread::spawn({
