@@ -15,7 +15,7 @@ impl UserConfig {
         Self {
             download_dir: None,
             font_size: 14,
-            remember_queue: false,
+            remember_queue: true,
         }
     }
 }

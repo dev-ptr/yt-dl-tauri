@@ -62,7 +62,7 @@ class SettingsManager {
     try {
       const config = {
         download_dir: this.downloadDirInput.value || null,
-        font_size: parseInt(this.fontSizeInput.value) || 14,
+        font_size: Math.max(8, Math.min(20, parseInt(this.fontSizeInput.value) || 14)),
         remember_queue: this.rememberQueueCheckbox.checked
       };
   

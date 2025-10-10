@@ -115,11 +115,17 @@ async function saveQueueToStorage() {
       const settings = await window.settingsManager.getCurrentSettings();
       console.log('Settings for queue save:', settings);
       
-      if (settings.remember_queue && queue.length > 0) {
-        const queueJson = JSON.stringify(queue);
-        localStorage.setItem('ytdl_queue', queueJson);
-        console.log('Queue saved to localStorage:', queue.length, 'items');
-      } else if (!settings.remember_queue) {
+      if (settings.remember_queue) {
+        if (queue.length > 0) {
+          const queueJson = JSON.stringify(queue);
+          localStorage.setItem('ytdl_queue', queueJson);
+          console.log('Queue saved to localStorage:', queue.length, 'items');
+        } else {
+          // Save empty queue to localStorage to clear it
+          localStorage.setItem('ytdl_queue', JSON.stringify([]));
+          console.log('Empty queue saved to localStorage');
+        }
+      } else {
         localStorage.removeItem('ytdl_queue');
         console.log('Queue remembering disabled, cleared localStorage');
       }
@@ -137,9 +143,15 @@ async function loadQueueFromStorage() {
         const savedQueue = localStorage.getItem('ytdl_queue');
         if (savedQueue) {
           const parsedQueue = JSON.parse(savedQueue);
-          queue.push(...parsedQueue);
-          updateQueueDisplay();
-          console.log('Loaded saved queue:', parsedQueue.length, 'items');
+          if (Array.isArray(parsedQueue)) {
+            // Validate each item has required properties
+            const validItems = parsedQueue.filter(item => 
+              item && typeof item === 'object' && item.url && item.fPath
+            );
+            queue.push(...validItems);
+            updateQueueDisplay();
+            console.log('Loaded saved queue:', parsedQueue.length, 'items');
+          }
         }
       }
     }
@@ -174,7 +186,7 @@ addToQueueBtn.addEventListener('click', async () => {
 
   queue.push(item);
   updateQueueDisplay();
-  saveQueueToStorage();
+  await saveQueueToStorage();
 
   log.textContent += `Added to queue: ${url}\n`;
   log.scrollTop = log.scrollHeight;
@@ -198,13 +210,13 @@ downloadBtn.addEventListener('click', async () => {
 });
 
 
-document.getElementById("removeBtn").addEventListener("click", () => {
+document.getElementById("removeBtn").addEventListener("click", async () => {
   const selected = Array.from(removeSelect.selectedOptions).map(opt => parseInt(opt.value, 10));
   selected.sort((a, b) => b - a).forEach(i => {
     if (i >= 0) queue.splice(i, 1);
   });
   updateQueueDisplay();
-  saveQueueToStorage();
+  await saveQueueToStorage();
 });
 
 function updateQueueDisplay() {
@@ -236,7 +248,7 @@ async function processQueue() {
       log.scrollTop = log.scrollHeight;
 
     }
-    saveQueueToStorage();
+    await saveQueueToStorage();
   }
 
   processing = false;
