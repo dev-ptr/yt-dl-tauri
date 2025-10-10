@@ -10,7 +10,18 @@ export async function setupMenu() {
         id: "settings",
         text: "Settings",
         action: () => {
-          alert("Settings");
+          // Open settings modal using the settings manager
+          if (window.settingsManager) {
+            window.settingsManager.openModal();
+          } else {
+            // Fallback if settingsManager isn't available
+            const settingsModal = document.getElementById('settingsModal');
+            if (settingsModal) {
+              settingsModal.style.display = 'block';
+              const event = new Event('settingsModalOpened');
+              document.dispatchEvent(event);
+            }
+          }
         },
       }),
       await MenuItem.new({

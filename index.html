@@ -39,6 +39,42 @@
 
 </div>
 
+<!-- Settings Modal -->
+<div id="settingsModal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Settings</h2>
+      <span class="close">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="setting-group">
+        <label for="settingsDownloadDir">Download Directory:</label>
+        <div class="folder-input-group">
+          <input id="settingsDownloadDir" type="text" readonly />
+          <button id="settingsBrowseBtn">Browse</button>
+          <button id="resetDownloadDirBtn">Reset to Default</button>
+        </div>
+      </div>
+      
+      <div class="setting-group">
+        <label for="fontSizeInput">Font Size:</label>
+        <input id="fontSizeInput" type="number" min="10" max="24" value="14" />
+        <span class="font-size-preview">Preview text</span>
+      </div>
+      
+      <div class="setting-group">
+        <label>
+          <input type="checkbox" id="rememberQueueCheckbox" />
+          Remember queue between sessions
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="saveSettingsBtn">Save Settings</button>
+      <button id="cancelSettingsBtn">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <div id="logContainer" style="display: none; max-height: 250px; overflow-y: auto;border:none;">
   <h3>Output Log</h3>
