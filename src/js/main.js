@@ -84,6 +84,23 @@ const statusPercent = document.getElementById("statusPercent");
 let isDownloading = false;
 let currentItem = null; // 👈 track active item
 
+<<<<<<< HEAD
+=======
+// Toggle log panel
+let isLogVisible = false;
+toggleBtn.addEventListener("click", async () => {
+  isLogVisible = !isLogVisible;
+  if (isLogVisible) {
+    logContainer.style.display = "block";
+    toggleBtn.textContent = "▲ Hide Log";
+    await appWindow.setSize(new LogicalSize(820, 870));
+  } else {
+    logContainer.style.display = "none";
+    toggleBtn.textContent = "▼ Show Log";
+    await appWindow.setSize(new LogicalSize(820, 650));
+  }
+});
+>>>>>>> b9e831e (3: updated size of width)
 
 clearQueueBtn.addEventListener('click', async () => {
   queue.length = 0;  
