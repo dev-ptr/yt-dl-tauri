@@ -8,12 +8,11 @@ import { SettingsManager } from "./settings.js";
 let appWindow;
 let settingsManager;
 
-(async () => {
+async function initializeApp() {
   appWindow = await getCurrentWindow();
   settingsManager = new SettingsManager();
   window.settingsManager = settingsManager;
-
-})();
+}
 
 const toggleBtn = document.getElementById("toggleLogBtn");
 const logContainer = document.getElementById("logContainer");
@@ -41,8 +40,10 @@ async function loadInitialSettings() {
     document.documentElement.style.setProperty('--font-size', '14px');
   }
 }
-document.addEventListener('DOMContentLoaded', loadInitialSettings);
-
+document.addEventListener('DOMContentLoaded', async () => {
+  await initializeApp();
+  await loadInitialSettings();
+});
 
 toggleBtn.addEventListener("click", async () => {
   isLogVisible = !isLogVisible;
