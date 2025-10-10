@@ -24,10 +24,6 @@ fn main() {
         .expect("error while running tauri application");
 }
 
-use std::io::{BufRead, BufReader};
-use std::process::{Command, Stdio};
-use tauri::Emitter;
-
 use scraper::{Html, Selector};
 
 #[tauri::command]
