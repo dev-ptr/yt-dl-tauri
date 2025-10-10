@@ -6,7 +6,7 @@ A lightweight, cross-platform YouTube downloader built with [Tauri](https://taur
 
 ---
 
-## 🚀 Features
+## Features
 
 - Download videos or audio directly from YouTube (and other supported sites)
 - Automatic MP3/MP4 conversion via FFmpeg
@@ -16,7 +16,7 @@ A lightweight, cross-platform YouTube downloader built with [Tauri](https://taur
 
 ---
 
-## 🧩 Build Requirements
+##  Build Requirements
 
 Before building or running, ensure the following dependencies are available in your environment:
 
