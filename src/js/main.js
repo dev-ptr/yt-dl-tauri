@@ -195,6 +195,12 @@ addToQueueBtn.addEventListener('click', async () => {
 });
 
 downloadBtn.addEventListener('click', async () => {
+  if (queue.length === 0) {
+    log.textContent += 'Queue is empty\n';
+    log.scrollTop = log.scrollHeight;
+    alert('Queue is empty');
+    return;
+  }
   if (isDownloading) {
     log.textContent += 'A download is already in progress\n'
     return;

@@ -25,11 +25,20 @@ fn main() {
 }
 
 use scraper::{Html, Selector};
+use std::time::Duration;
 
 #[tauri::command]
 fn fetch_video_title(url: String) -> Result<String, String> {
     println!("Fetching URL: {}", url); 
-    let body = reqwest::blocking::get(&url)
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let body = client
+        .get(&url)
+        .send()
+        .and_then(|r| r.error_for_status())
         .map_err(|e| e.to_string())?
         .text()
         .map_err(|e| e.to_string())?;
