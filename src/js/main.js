@@ -17,6 +17,10 @@ async function initializeApp() {
 const toggleBtn = document.getElementById("toggleLogBtn");
 const logContainer = document.getElementById("logContainer");
 let isLogVisible = false;
+let editingIndex = -1;
+let originalUrl = '';
+let isProgrammaticChange = false;
+
 
 async function loadInitialSettings() {
   try {
@@ -82,14 +86,19 @@ const statusText = document.getElementById("statusText");
 const statusPercent = document.getElementById("statusPercent");
 
 let isDownloading = false;
-let currentItem = null; // 👈 track active item
+let currentItem = null; 
 
 
 clearQueueBtn.addEventListener('click', async () => {
   queue.length = 0;  
-  updateQueueDisplay();
-  // Clear saved queue
   localStorage.removeItem('ytdl_queue');
+  editingIndex = -1;
+  originalUrl = '';
+  urlInput.value = '';
+  addToQueueBtn.textContent = 'Add to queue';
+  
+  updateQueueDisplay();
+  await saveQueueToStorage();
 });
 async function hideLogContainer() {
   const container = document.getElementById("logContainer");
@@ -160,38 +169,51 @@ browseBtn.addEventListener('click', async () => {
   if (file) folderPath.value = file;
 });
 
-
-
-// Add to queue
 addToQueueBtn.addEventListener('click', async () => {
   const fPath = folderPath.value.trim();
-  if (!fPath) return alert('Please select a download folder');
+  if (!fPath) {
+    alert('Please select a download folder');
+    return;
+  }
 
   const url = urlInput.value.trim();
-  if (!url) return alert('Please enter a URL');
-
+  if (!url) {
+    alert('Please enter a URL');
+    return;
+  }
   let title = url;
   try {
     title = await invoke('fetch_video_title', { url });
   } catch (e) {
     console.warn('Could not fetch title, falling back to URL');
   }
+  const mp3Only = mp3OnlyCheckbox.checked;
+  const enablePlaylist = enablePlayistCheckbox.checked;
+  const sponsorblock = sponsorblockCheckbox.checked;
+  const item = { url, title, fPath, mp3Only, enablePlaylist, sponsorblock };
 
-  const item = { 
-    url, title, fPath,
-    mp3Only: mp3OnlyCheckbox.checked,
-    enablePlaylist: enablePlayistCheckbox.checked,
-    sponsorblock: sponsorblockCheckbox.checked,
-    progress: 0
-  };
+  if (editingIndex >= 0) {
+    queue[editingIndex] = item;
+    log.textContent += `Updated queue item: ${url}\n`;
+  } else {
+    if (queue.some(item => item.url === url)) {
+      alert('Already in queue');
+      return;
+    }
+    queue.push(item);
+    log.textContent += `Added to queue: ${url}\n`;
+  }
 
-  queue.push(item);
   updateQueueDisplay();
   await saveQueueToStorage();
-
-  log.textContent += `Added to queue: ${title}\n`;
+  
+  // Reset form
+  urlInput.value = '';
+  editingIndex = -1;
+  originalUrl = '';
+  addToQueueBtn.textContent = 'Add to queue';
+  
   log.scrollTop = log.scrollHeight;
-  urlInput.value = ''
 });
 
 downloadBtn.addEventListener('click', async () => {
@@ -222,6 +244,12 @@ document.getElementById("removeBtn").addEventListener("click", async () => {
   selected.sort((a, b) => b - a).forEach(i => {
     if (i >= 0) queue.splice(i, 1);
   });
+  
+  // Reset editing state when items are removed
+  editingIndex = -1;
+  originalUrl = '';
+  addToQueueBtn.textContent = 'Add to queue';
+  
   updateQueueDisplay();
   await saveQueueToStorage();
 });
@@ -235,6 +263,35 @@ function updateQueueDisplay() {
     opt.text = item.title || item.url;
     removeSelect.appendChild(opt);
   });
+}
+removeSelect.addEventListener('change', () => {
+  const selectedIndex = parseInt(removeSelect.value);
+  if (selectedIndex >= 0 && selectedIndex < queue.length) {
+    editQueueItem(selectedIndex);
+  }
+});
+
+function editQueueItem(index) {
+  if (index >= 0 && index < queue.length) {
+    const item = queue[index];
+    editingIndex = index;
+    originalUrl = item.url;
+    
+    // Set flag to prevent triggering input listener
+    isProgrammaticChange = true;
+    
+    // Populate form with item data
+    urlInput.value = item.url;
+    folderPath.value = item.fPath;
+    mp3OnlyCheckbox.checked = item.mp3Only;
+    enablePlayistCheckbox.checked = item.enablePlaylist;
+    sponsorblockCheckbox.checked = item.sponsorblock;
+    
+    // Change button text
+    addToQueueBtn.textContent = 'Update Item';
+    
+    // Remove this line: removeSelect.selectedIndex = -1;
+  }
 }
 
 async function processQueue() {
@@ -287,7 +344,23 @@ await listen('download-progress', event => {
   log.textContent += `Progress: ${percent}%\n`;
   log.scrollTop = log.scrollHeight;
 });
-
+urlInput.addEventListener('input', () => {
+  if (editingIndex >= 0) {
+    editingIndex = -1;
+    originalUrl = '';
+    addToQueueBtn.textContent = 'Add to queue';
+  }
+});
+// Add escape key listener to cancel editing
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && editingIndex >= 0) {
+    // Cancel editing
+    urlInput.value = '';
+    editingIndex = -1;
+    originalUrl = '';
+    addToQueueBtn.textContent = 'Add to queue';
+  }
+});
 await listen('download-complete', event => {
   const rawTitle = currentItem?.title || currentItem?.url || "Unknown";
   statusText.textContent = `✅ Completed "${rawTitle}"`;
