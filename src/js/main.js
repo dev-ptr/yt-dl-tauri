@@ -288,10 +288,8 @@ function editQueueItem(index) {
     enablePlayistCheckbox.checked = item.enablePlaylist;
     sponsorblockCheckbox.checked = item.sponsorblock;
     
-    // Change button text
     addToQueueBtn.textContent = 'Update Item';
     
-    // Remove this line: removeSelect.selectedIndex = -1;
   }
 }
 
