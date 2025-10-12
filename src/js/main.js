@@ -247,6 +247,7 @@ document.getElementById("removeBtn").addEventListener("click", async () => {
   
   // Reset editing state when items are removed
   editingIndex = -1;
+  urlInput.value = '';
   originalUrl = '';
   addToQueueBtn.textContent = 'Add to queue';
   
