@@ -4,7 +4,10 @@
 )]
 
 mod config;
+mod binary_manager;
+
 use config::{ConfigManager, UserConfig};
+use binary_manager::{BinaryManager, BinaryStatus};
 
 use tauri::Window;
 fn main() {
@@ -13,12 +16,15 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())  
         .invoke_handler(tauri::generate_handler![
-            download_url, 
+            download_url,
             quit_app,
             get_config,
             update_config,
             get_download_dir,
-            fetch_video_title
+            fetch_video_title,
+            check_binaries,
+            download_ytdlp,
+            download_ffmpeg
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -76,6 +82,7 @@ fn get_download_dir(app_handle: tauri::AppHandle) -> Result<String, String> {
 }
 #[tauri::command]
 async fn download_url(
+    app_handle: tauri::AppHandle,
     window: Window,
     url: String,
     f_path: String,
@@ -86,6 +93,15 @@ async fn download_url(
     use std::io::{BufRead, BufReader};
     use std::process::{Command, Stdio};
     use tauri::Emitter;
+
+    // Get path to yt-dlp binary (prefers bundled, falls back to system)
+    let status = BinaryManager::check_binaries(&app_handle)?;
+
+    if !status.yt_dlp_installed {
+        return Err("yt-dlp not found. Please install yt-dlp or download binaries.".to_string());
+    }
+
+    let ytdlp_path = status.yt_dlp_path.unwrap_or_else(|| "yt-dlp".to_string());
 
     let output_template = format!("{}/%(title)s.%(ext)s", f_path);
 
@@ -105,7 +121,7 @@ async fn download_url(
         args.push("--sponsorblock-remove");
         args.push("all");
     }
-    let mut child = Command::new("yt-dlp")
+    let mut child = Command::new(&ytdlp_path)
         .args(&args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -125,7 +141,7 @@ async fn download_url(
         let _ = window.emit("download-log", l.clone());
 
         if l.contains("[download]") && l.contains("Destination:") {
-            last_percent = 0; // Reset for actual download phase
+            last_percent = 0;
         }
 
         if let Some(p) = parse_progress_percent(&l) {
@@ -177,4 +193,19 @@ fn parse_progress_percent(line: &str) -> Option<u8> {
         }
     }
     None
+}
+
+#[tauri::command]
+fn check_binaries(app_handle: tauri::AppHandle) -> Result<BinaryStatus, String> {
+    BinaryManager::check_binaries(&app_handle)
+}
+
+#[tauri::command]
+async fn download_ytdlp(app_handle: tauri::AppHandle) -> Result<(), String> {
+    BinaryManager::download_ytdlp(&app_handle).await
+}
+
+#[tauri::command]
+async fn download_ffmpeg(app_handle: tauri::AppHandle) -> Result<(), String> {
+    BinaryManager::download_ffmpeg(&app_handle).await
 }
