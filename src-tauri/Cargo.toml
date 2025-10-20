@@ -22,6 +22,9 @@ flate2 = "1.0"
 tar = "0.4"
 xz2 = "0.1"
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [build-dependencies]
 tauri-build = { version = "2.0.0", features = [] }  # Add if missing
 [workspace]

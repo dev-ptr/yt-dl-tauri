@@ -10,6 +10,10 @@ use config::{ConfigManager, UserConfig};
 use binary_manager::{BinaryManager, BinaryStatus};
 
 use tauri::Window;
+use std::sync::{Arc, Mutex};
+
+// Global state to track current download process
+static CURRENT_PROCESS: Mutex<Option<Arc<Mutex<Option<u32>>>>> = Mutex::new(None);
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -17,6 +21,7 @@ fn main() {
         .plugin(tauri_plugin_opener::init())  
         .invoke_handler(tauri::generate_handler![
             download_url,
+            cancel_download,
             quit_app,
             get_config,
             update_config,
@@ -153,12 +158,34 @@ async fn download_url(
         args.push("--cookies-from-browser");
         args.push("firefox");
     }
+    // Create process group on Unix to ensure child processes (ffmpeg) can be killed
+    #[cfg(unix)]
+    let mut child = {
+        use std::os::unix::process::CommandExt;
+        Command::new(&ytdlp_path)
+            .args(&args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .process_group(0) // Create new process group
+            .spawn()
+            .map_err(|e| format!("Failed to spawn yt-dlp: {}", e))?
+    };
+
+    #[cfg(not(unix))]
     let mut child = Command::new(&ytdlp_path)
         .args(&args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("Failed to spawn yt-dlp: {}", e))?;
+
+    // Store process ID for cancellation
+    let pid = child.id();
+    {
+        let mut current = CURRENT_PROCESS.lock().unwrap();
+        *current = Some(Arc::new(Mutex::new(Some(pid))));
+    }
+
     let _ = window.emit("download-progress", 0u8);
 
     // Read stdout for progress
@@ -200,6 +227,13 @@ async fn download_url(
     }
 
     let status = child.wait().map_err(|e| format!("wait failed: {}", e))?;
+
+    // Clear the process ID
+    {
+        let mut current = CURRENT_PROCESS.lock().unwrap();
+        *current = None;
+    }
+
     let code = status.code().unwrap_or(-1);
 
     if code == 0 {
@@ -281,4 +315,62 @@ async fn download_all_binaries(app_handle: tauri::AppHandle) -> Result<(), Strin
     BinaryManager::download_ytdlp(&app_handle).await?;
     BinaryManager::download_ffmpeg(&app_handle).await?;
     Ok(())
+}
+
+#[tauri::command]
+fn cancel_download() -> Result<(), String> {
+    let current = CURRENT_PROCESS.lock().unwrap();
+    if let Some(ref pid_arc) = *current {
+        let mut pid_lock = pid_arc.lock().unwrap();
+        if let Some(pid) = *pid_lock {
+            #[cfg(unix)]
+            {
+                // Kill the entire process group (negative PID) to terminate ffmpeg children
+                let result = unsafe {
+                    libc::kill(-(pid as i32), libc::SIGTERM)
+                };
+
+                if result != 0 {
+                    let err = std::io::Error::last_os_error();
+                    // ESRCH (No such process) is acceptable - process already terminated
+                    if err.raw_os_error() != Some(libc::ESRCH) {
+                        return Err(format!("Failed to terminate process group: {}", err));
+                    }
+                } else {
+                    // Grace period: escalate to SIGKILL if process doesn't terminate
+                    // Share the Arc to verify PID hasn't been reused before SIGKILL
+                    let pid_arc_clone = Arc::clone(pid_arc);
+                    std::thread::spawn(move || {
+                        std::thread::sleep(std::time::Duration::from_secs(2));
+                        // Verify PID still matches to prevent killing wrong process
+                        if let Ok(guard) = pid_arc_clone.lock() {
+                            if *guard == Some(pid) {
+                                unsafe {
+                                    // Attempt SIGKILL - ignore errors (process may have exited)
+                                    libc::kill(-(pid as i32), libc::SIGKILL);
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+            #[cfg(windows)]
+            {
+                use std::process::Command;
+                // Use /T flag to terminate the process tree including ffmpeg
+                let result = Command::new("taskkill")
+                    .args(&["/PID", &pid.to_string(), "/F", "/T"])
+                    .output();
+
+                if let Err(e) = result {
+                    return Err(format!("Failed to execute taskkill: {}", e));
+                }
+            }
+
+            // Clear PID atomically after kill attempt
+            *pid_lock = None;
+            return Ok(());
+        }
+    }
+    Err("No active download to cancel".to_string())
 }
