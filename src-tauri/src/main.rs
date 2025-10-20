@@ -338,11 +338,18 @@ fn cancel_download() -> Result<(), String> {
                     }
                 } else {
                     // Grace period: escalate to SIGKILL if process doesn't terminate
+                    // Share the Arc to verify PID hasn't been reused before SIGKILL
+                    let pid_arc_clone = Arc::clone(pid_arc);
                     std::thread::spawn(move || {
                         std::thread::sleep(std::time::Duration::from_secs(2));
-                        unsafe {
-                            // Attempt SIGKILL - ignore errors (process may have exited)
-                            libc::kill(-(pid as i32), libc::SIGKILL);
+                        // Verify PID still matches to prevent killing wrong process
+                        if let Ok(guard) = pid_arc_clone.lock() {
+                            if *guard == Some(pid) {
+                                unsafe {
+                                    // Attempt SIGKILL - ignore errors (process may have exited)
+                                    libc::kill(-(pid as i32), libc::SIGKILL);
+                                }
+                            }
                         }
                     });
                 }
