@@ -8,6 +8,12 @@ pub struct UserConfig {
     pub download_dir: Option<String>,
     pub font_size: u8,
     pub remember_queue: bool,
+    #[serde(default = "default_use_system_binaries")]
+    pub use_system_binaries: bool,
+}
+
+fn default_use_system_binaries() -> bool {
+    true
 }
 
 impl UserConfig {
@@ -16,6 +22,7 @@ impl UserConfig {
             download_dir: None,
             font_size: 14,
             remember_queue: true,
+            use_system_binaries: true,
         }
     }
 }

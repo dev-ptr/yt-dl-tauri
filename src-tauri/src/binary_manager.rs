@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 use tauri::Manager;
+use crate::config::ConfigManager;
 
 pub struct BinaryManager;
 
@@ -133,9 +134,13 @@ impl BinaryManager {
     }
 
     pub async fn download_ytdlp(app_handle: &tauri::AppHandle) -> Result<(), String> {
+        use tauri::Emitter;
+        use futures_util::StreamExt;
+
         let url = Self::get_ytdlp_download_url()?;
         let dest_path = Self::get_ytdlp_path(app_handle)?;
 
+        let _ = app_handle.emit("binary-download-status", "Downloading yt-dlp...");
         println!("Downloading yt-dlp from: {}", url);
 
         let client = reqwest::Client::builder()
@@ -153,23 +158,40 @@ impl BinaryManager {
             return Err(format!("Download failed with status: {}", response.status()));
         }
 
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(|e| format!("Failed to read download bytes: {}", e))?;
+        let total_size = response.content_length().unwrap_or(0);
+        let mut downloaded: u64 = 0;
+        let mut stream = response.bytes_stream();
+        let mut buffer = Vec::new();
 
-        fs::write(&dest_path, bytes)
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.map_err(|e| format!("Failed to read chunk: {}", e))?;
+            buffer.extend_from_slice(&chunk);
+            downloaded += chunk.len() as u64;
+
+            if total_size > 0 {
+                let percent = ((downloaded as f64 / total_size as f64) * 100.0) as u8;
+                let _ = app_handle.emit("binary-download-progress", ("yt-dlp", percent));
+            }
+        }
+
+        fs::write(&dest_path, buffer)
             .map_err(|e| format!("Failed to write binary file: {}", e))?;
 
         Self::make_executable(&dest_path)?;
 
+        let _ = app_handle.emit("binary-download-status", "yt-dlp downloaded successfully");
         println!("yt-dlp downloaded successfully to: {}", dest_path.display());
         Ok(())
     }
 
     pub async fn download_ffmpeg(app_handle: &tauri::AppHandle) -> Result<(), String> {
+        use tauri::Emitter;
+        use futures_util::StreamExt;
+
         let ffmpeg_path = Self::get_ffmpeg_path(app_handle)?;
         let ffprobe_path = Self::get_ffprobe_path(app_handle)?;
+
+        let _ = app_handle.emit("binary-download-status", "Downloading ffmpeg...");
 
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(300))
@@ -179,18 +201,36 @@ impl BinaryManager {
         // For macOS, download ffmpeg and ffprobe separately
         if cfg!(target_os = "macos") {
             println!("Downloading ffmpeg...");
+            let _ = app_handle.emit("binary-download-status", "Downloading ffmpeg binary...");
             let ffmpeg_url = "https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip";
+
             let response = client.get(ffmpeg_url).send().await
                 .map_err(|e| format!("Failed to download ffmpeg: {}", e))?;
             if !response.status().is_success() {
                 return Err(format!("Download failed with status: {}", response.status()));
             }
-            let bytes = response.bytes().await
-                .map_err(|e| format!("Failed to read ffmpeg bytes: {}", e))?;
-            Self::extract_single_binary_macos(&bytes, &ffmpeg_path, "ffmpeg")?;
+
+            let total_size = response.content_length().unwrap_or(0);
+            let mut downloaded: u64 = 0;
+            let mut stream = response.bytes_stream();
+            let mut buffer = Vec::new();
+
+            while let Some(chunk) = stream.next().await {
+                let chunk = chunk.map_err(|e| format!("Failed to read chunk: {}", e))?;
+                buffer.extend_from_slice(&chunk);
+                downloaded += chunk.len() as u64;
+
+                if total_size > 0 {
+                    let percent = ((downloaded as f64 / total_size as f64) * 100.0) as u8;
+                    let _ = app_handle.emit("binary-download-progress", ("ffmpeg", percent));
+                }
+            }
+
+            Self::extract_single_binary_macos(&buffer, &ffmpeg_path, "ffmpeg")?;
             Self::make_executable(&ffmpeg_path)?;
 
             println!("Downloading ffprobe...");
+            let _ = app_handle.emit("binary-download-status", "Downloading ffprobe binary...");
             let ffprobe_url = "https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip";
             let response = client.get(ffprobe_url).send().await
                 .map_err(|e| format!("Failed to download ffprobe: {}", e))?;
@@ -213,19 +253,33 @@ impl BinaryManager {
                 return Err(format!("Download failed with status: {}", response.status()));
             }
 
-            let bytes = response.bytes().await
-                .map_err(|e| format!("Failed to read download bytes: {}", e))?;
+            let total_size = response.content_length().unwrap_or(0);
+            let mut downloaded: u64 = 0;
+            let mut stream = response.bytes_stream();
+            let mut buffer = Vec::new();
+
+            while let Some(chunk) = stream.next().await {
+                let chunk = chunk.map_err(|e| format!("Failed to read chunk: {}", e))?;
+                buffer.extend_from_slice(&chunk);
+                downloaded += chunk.len() as u64;
+
+                if total_size > 0 {
+                    let percent = ((downloaded as f64 / total_size as f64) * 100.0) as u8;
+                    let _ = app_handle.emit("binary-download-progress", ("ffmpeg", percent));
+                }
+            }
 
             if cfg!(target_os = "windows") {
-                Self::extract_ffmpeg_windows(&bytes, &ffmpeg_path, &ffprobe_path)?;
+                Self::extract_ffmpeg_windows(&buffer, &ffmpeg_path, &ffprobe_path)?;
             } else if cfg!(target_os = "linux") {
-                Self::extract_ffmpeg_linux(&bytes, &ffmpeg_path, &ffprobe_path)?;
+                Self::extract_ffmpeg_linux(&buffer, &ffmpeg_path, &ffprobe_path)?;
             }
 
             Self::make_executable(&ffmpeg_path)?;
             Self::make_executable(&ffprobe_path)?;
         }
 
+        let _ = app_handle.emit("binary-download-status", "ffmpeg downloaded successfully");
         println!("ffmpeg and ffprobe downloaded successfully");
         Ok(())
     }
@@ -410,8 +464,11 @@ impl BinaryManager {
             .is_ok()
     }
 
-    // Check status of binaries (checks both system PATH and bundled)
+    // Check status of binaries (respects use_system_binaries config)
     pub fn check_binaries(app_handle: &tauri::AppHandle) -> Result<BinaryStatus, String> {
+        let config = ConfigManager::load_config(app_handle)?;
+        let use_system = config.use_system_binaries;
+
         let ytdlp_path = Self::get_ytdlp_path(app_handle)?;
         let ffmpeg_path = Self::get_ffmpeg_path(app_handle)?;
 
@@ -419,10 +476,11 @@ impl BinaryManager {
         let ytdlp_bundled = Self::is_binary_valid(&ytdlp_path);
         let ffmpeg_bundled = Self::is_binary_valid(&ffmpeg_path);
 
-        // Check system PATH as fallback
-        let ytdlp_system = Self::is_in_system_path("yt-dlp");
-        let ffmpeg_system = Self::is_in_system_path("ffmpeg");
+        // Check system PATH (only if use_system_binaries is enabled)
+        let ytdlp_system = use_system && Self::is_in_system_path("yt-dlp");
+        let ffmpeg_system = use_system && Self::is_in_system_path("ffmpeg");
 
+        // Priority: bundled first, then system (if enabled)
         let ytdlp_valid = ytdlp_bundled || ytdlp_system;
         let ffmpeg_valid = ffmpeg_bundled || ffmpeg_system;
 

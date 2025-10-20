@@ -24,7 +24,8 @@ fn main() {
             fetch_video_title,
             check_binaries,
             download_ytdlp,
-            download_ffmpeg
+            download_ffmpeg,
+            download_all_binaries
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -254,4 +255,11 @@ async fn download_ytdlp(app_handle: tauri::AppHandle) -> Result<(), String> {
 #[tauri::command]
 async fn download_ffmpeg(app_handle: tauri::AppHandle) -> Result<(), String> {
     BinaryManager::download_ffmpeg(&app_handle).await
+}
+
+#[tauri::command]
+async fn download_all_binaries(app_handle: tauri::AppHandle) -> Result<(), String> {
+    BinaryManager::download_ytdlp(&app_handle).await?;
+    BinaryManager::download_ffmpeg(&app_handle).await?;
+    Ok(())
 }

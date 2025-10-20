@@ -5861,6 +5861,7 @@ version = "1.0.0"
 dependencies = [
  "dirs-next",
  "flate2",
+ "futures-util",
  "reqwest",
  "scraper",
  "serde",

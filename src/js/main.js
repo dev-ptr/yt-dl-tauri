@@ -433,6 +433,21 @@ await listen('download-log', event => {
   log.textContent += event.payload + '\n'
   log.scrollTop = log.scrollHeight
 });
+
+await listen('binary-download-status', event => {
+  statusText.textContent = event.payload;
+  statusPercent.textContent = "";
+  log.textContent += `${event.payload}\n`;
+  log.scrollTop = log.scrollHeight;
+});
+
+await listen('binary-download-progress', event => {
+  const [binary, percent] = event.payload;
+  statusText.textContent = `Downloading ${binary}`;
+  statusPercent.textContent = `${percent}%`;
+  log.textContent += `${binary}: ${percent}%\n`;
+  log.scrollTop = log.scrollHeight;
+});
 })()
 
 // init

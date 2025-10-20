@@ -1,6 +1,7 @@
 import { Menu, MenuItem, Submenu } from "@tauri-apps/api/menu";
 import { exit } from "@tauri-apps/plugin-process";
 import { openUrl } from '@tauri-apps/plugin-opener';
+import { invoke } from '@tauri-apps/api/core';
 
 export async function setupMenu() {
   const fileSubmenu = await Submenu.new({
@@ -20,6 +21,31 @@ export async function setupMenu() {
               settingsModal.style.display = 'block';
               const event = new Event('settingsModalOpened');
               document.dispatchEvent(event);
+            }
+          }
+        },
+      }),
+      await MenuItem.new({
+        id: "download_binaries",
+        text: "Download Binaries",
+        action: async () => {
+          if (confirm("Download yt-dlp and ffmpeg binaries?\n\nThis may take a few minutes.")) {
+            const log = document.getElementById('log');
+            if (log) {
+              log.textContent += 'Downloading binaries...\n';
+            }
+            try {
+              await invoke('download_all_binaries');
+              if (log) {
+                log.textContent += 'Binaries downloaded successfully!\n';
+              }
+              alert('Binaries downloaded successfully!');
+            } catch (error) {
+              console.error('Failed to download binaries:', error);
+              if (log) {
+                log.textContent += `Failed: ${error}\n`;
+              }
+              alert(`Failed to download binaries: ${error}`);
             }
           }
         },
