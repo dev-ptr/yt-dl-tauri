@@ -10,6 +10,10 @@ use config::{ConfigManager, UserConfig};
 use binary_manager::{BinaryManager, BinaryStatus};
 
 use tauri::Window;
+use std::sync::{Arc, Mutex};
+
+// Global state to track current download process
+static CURRENT_PROCESS: Mutex<Option<Arc<Mutex<Option<u32>>>>> = Mutex::new(None);
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -17,6 +21,7 @@ fn main() {
         .plugin(tauri_plugin_opener::init())  
         .invoke_handler(tauri::generate_handler![
             download_url,
+            cancel_download,
             quit_app,
             get_config,
             update_config,
@@ -159,6 +164,14 @@ async fn download_url(
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("Failed to spawn yt-dlp: {}", e))?;
+
+    // Store process ID for cancellation
+    let pid = child.id();
+    {
+        let mut current = CURRENT_PROCESS.lock().unwrap();
+        *current = Some(Arc::new(Mutex::new(Some(pid))));
+    }
+
     let _ = window.emit("download-progress", 0u8);
 
     // Read stdout for progress
@@ -200,6 +213,13 @@ async fn download_url(
     }
 
     let status = child.wait().map_err(|e| format!("wait failed: {}", e))?;
+
+    // Clear the process ID
+    {
+        let mut current = CURRENT_PROCESS.lock().unwrap();
+        *current = None;
+    }
+
     let code = status.code().unwrap_or(-1);
 
     if code == 0 {
@@ -281,4 +301,28 @@ async fn download_all_binaries(app_handle: tauri::AppHandle) -> Result<(), Strin
     BinaryManager::download_ytdlp(&app_handle).await?;
     BinaryManager::download_ffmpeg(&app_handle).await?;
     Ok(())
+}
+
+#[tauri::command]
+fn cancel_download() -> Result<(), String> {
+    let current = CURRENT_PROCESS.lock().unwrap();
+    if let Some(ref pid_arc) = *current {
+        if let Some(pid) = *pid_arc.lock().unwrap() {
+            #[cfg(unix)]
+            {
+                unsafe {
+                    libc::kill(pid as i32, libc::SIGTERM);
+                }
+            }
+            #[cfg(windows)]
+            {
+                use std::process::Command;
+                let _ = Command::new("taskkill")
+                    .args(&["/PID", &pid.to_string(), "/F"])
+                    .output();
+            }
+            return Ok(());
+        }
+    }
+    Err("No active download to cancel".to_string())
 }

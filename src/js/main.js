@@ -40,8 +40,8 @@ let isLogVisible = false;
 let editingIndex = -1;
 let originalUrl = '';
 let isProgrammaticChange = false;
-let isDownloading = false;
 let currentItem = null;
+let shouldStopQueue = false;
 
 
 async function checkAndDownloadBinaries() {
@@ -263,25 +263,35 @@ addToQueueBtn.addEventListener('click', async () => {
 });
 
 downloadBtn.addEventListener('click', async () => {
+  // If already processing, stop the queue immediately
+  if (processing) {
+    shouldStopQueue = true;
+    downloadBtn.textContent = 'Process Queue';
+    log.textContent += 'Stopping queue immediately...\n';
+    log.scrollTop = log.scrollHeight;
+
+    // Cancel the current download on the backend
+    try {
+      await invoke('cancel_download');
+    } catch (err) {
+      console.log('No download to cancel or already finished');
+    }
+    return;
+  }
+
   if (queue.length === 0) {
     log.textContent += 'Queue is empty\n';
     log.scrollTop = log.scrollHeight;
     alert('Queue is empty');
     return;
   }
-  if (isDownloading) {
-    log.textContent += 'A download is already in progress\n'
-    return;
-  }
+
   log.textContent += 'Starting download...\n';
   log.scrollTop = log.scrollHeight;
 
-  isDownloading = true;
-  downloadBtn.disabled = true;
-
-  if (!processing) {
-    processQueue();
-  }
+  shouldStopQueue = false;
+  downloadBtn.textContent = 'Stop Queue';
+  processQueue();
 });
 
 
@@ -343,7 +353,7 @@ function editQueueItem(index) {
 async function processQueue() {
   processing = true;
 
-  while (queue.length > 0) {
+  while (queue.length > 0 && !shouldStopQueue) {
     currentItem = queue.shift();
     updateQueueDisplay();
 
@@ -353,14 +363,30 @@ async function processQueue() {
     try {
       await processDownload(currentItem);
     } catch (err) {
-      // already handled by listeners
+      if (shouldStopQueue) {
+        // Download was aborted, add item back to queue
+        queue.unshift(currentItem);
+        updateQueueDisplay();
+        await saveQueueToStorage();
+        log.textContent += 'Queue stopped. Current item returned to queue.\n';
+        log.scrollTop = log.scrollHeight;
+      }
+      // Other errors already handled by listeners
     }
+
+    // Check if we should stop after this download
+    if (shouldStopQueue) {
+      break;
+    }
+
     await saveQueueToStorage();
   }
 
   currentItem = null;
   resetStatus();
   processing = false;
+  shouldStopQueue = false;
+  downloadBtn.textContent = 'Process Queue';
 }
 
 // Trigger backend download
@@ -415,9 +441,6 @@ await listen('download-complete', event => {
 
   log.textContent += `Download completed with code ${event.payload}\n`;
   log.scrollTop = log.scrollHeight;
-
-  isDownloading = false;
-  downloadBtn.disabled = false;
 });
 
 await listen('download-error', event => {
@@ -427,9 +450,6 @@ await listen('download-error', event => {
 
   log.textContent += `ERROR: ${event.payload}\n`;
   log.scrollTop = log.scrollHeight;
-
-  isDownloading = false;
-  downloadBtn.disabled = false;
 });
 
 await listen('download-log', event => {
