@@ -88,7 +88,8 @@ async fn download_url(
     f_path: String,
     mp3_only: bool,
     enable_playlist: bool,
-    sponsorblock: bool
+    sponsorblock: bool,
+    cookies: bool
 ) -> Result<(), String> {
     use std::io::{BufRead, BufReader};
     use std::process::{Command, Stdio};
@@ -132,6 +133,10 @@ async fn download_url(
     if sponsorblock {
         args.push("--sponsorblock-remove");
         args.push("all");
+    }
+    if cookies {
+        args.push("--cookies-from-browser");
+        args.push("firefox");
     }
     let mut child = Command::new(&ytdlp_path)
         .args(&args)
