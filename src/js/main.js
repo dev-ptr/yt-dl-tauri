@@ -23,6 +23,7 @@ const urlInput = document.getElementById('urlInput');
 const mp3OnlyCheckbox = document.getElementById('mp3Only');
 const sponsorblockCheckbox = document.getElementById('sponsorblock');
 const enablePlayistCheckbox = document.getElementById('enablePlaylist');
+const cookiesCheckbox = document.getElementById('cookies');
 const downloadBtn = document.getElementById('downloadBtn');
 const addToQueueBtn = document.getElementById('addToQueueBtn');
 const browseBtn = document.getElementById('browseBtn');
@@ -234,7 +235,8 @@ addToQueueBtn.addEventListener('click', async () => {
   const mp3Only = mp3OnlyCheckbox.checked;
   const enablePlaylist = enablePlayistCheckbox.checked;
   const sponsorblock = sponsorblockCheckbox.checked;
-  const item = { url, title, fPath, mp3Only, enablePlaylist, sponsorblock };
+  const cookies = cookiesCheckbox.checked;
+  const item = { url, title, fPath, mp3Only, enablePlaylist, sponsorblock, cookies };
 
   if (editingIndex >= 0) {
     queue[editingIndex] = item;
@@ -331,6 +333,7 @@ function editQueueItem(index) {
     mp3OnlyCheckbox.checked = item.mp3Only;
     enablePlayistCheckbox.checked = item.enablePlaylist;
     sponsorblockCheckbox.checked = item.sponsorblock;
+    cookiesCheckbox.checked = item.cookies;
     
     addToQueueBtn.textContent = 'Update Item';
     
@@ -366,9 +369,10 @@ async function processDownload(item) {
     await invoke('download_url', {
       url: item.url,
       fPath: item.fPath,
-      mp3Only: item.mp3Only,
-      enablePlaylist: item.enablePlaylist,
-      sponsorblock: item.sponsorblock
+      mp3Only: item.mp3Only || false,
+      enablePlaylist: item.enablePlaylist || false,
+      sponsorblock: item.sponsorblock || false,
+      cookies: item.cookies || false
     });
   } catch (error) {
     throw new Error(`Download failed for ${item.url}: ${error}`);
