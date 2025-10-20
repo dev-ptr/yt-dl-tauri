@@ -9,13 +9,15 @@ class SettingsManager {
       this.saveBtn = document.getElementById('saveSettingsBtn');
       this.browseBtn = document.getElementById('settingsBrowseBtn');
       this.resetBtn = document.getElementById('resetDownloadDirBtn');
-      
+      this.downloadBinariesBtn = document.getElementById('downloadBinariesBtn');
+
       this.downloadDirInput = document.getElementById('settingsDownloadDir');
       this.fontSizeInput = document.getElementById('fontSizeInput');
       this.rememberQueueCheckbox = document.getElementById('rememberQueueCheckbox');
-      
+      this.useSystemBinariesCheckbox = document.getElementById('useSystemBinariesCheckbox');
+
       this.setupEventListeners();
-      
+
       document.addEventListener('settingsModalOpened', () => {
         this.loadCurrentSettings();
       });
@@ -36,17 +38,20 @@ class SettingsManager {
 
     this.resetBtn.onclick = () => this.resetDownloadDir();
 
+    this.downloadBinariesBtn.onclick = () => this.downloadBinaries();
+
     this.fontSizeInput.oninput = () => this.updateFontSizePreview();
   }
 
   async loadCurrentSettings() {
     try {
       const config = await invoke('get_config');
-      
+
       this.downloadDirInput.value = config.download_dir || '';
       this.fontSizeInput.value = config.font_size || 14;
       this.rememberQueueCheckbox.checked = config.remember_queue || true;
-      
+      this.useSystemBinariesCheckbox.checked = config.use_system_binaries !== false;
+
       this.updateFontSizePreview();
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -54,6 +59,7 @@ class SettingsManager {
       this.downloadDirInput.value = '';
       this.fontSizeInput.value = 14;
       this.rememberQueueCheckbox.checked = false;
+      this.useSystemBinariesCheckbox.checked = true;
       this.updateFontSizePreview();
     }
   }
@@ -63,9 +69,10 @@ class SettingsManager {
       const config = {
         download_dir: this.downloadDirInput.value || null,
         font_size: Math.max(8, Math.min(20, parseInt(this.fontSizeInput.value) || 14)),
-        remember_queue: this.rememberQueueCheckbox.checked
+        remember_queue: this.rememberQueueCheckbox.checked,
+        use_system_binaries: this.useSystemBinariesCheckbox.checked
       };
-  
+
       await invoke('update_config', { newConfig: config });
       
       // Apply font size globally immediately
@@ -117,6 +124,41 @@ class SettingsManager {
     }
   }
 
+  async downloadBinaries() {
+    const btn = this.downloadBinariesBtn;
+    const originalText = btn.textContent;
+    const statusText = document.getElementById('statusText');
+    const statusPercent = document.getElementById('statusPercent');
+    const log = document.getElementById('log');
+
+    try {
+      btn.disabled = true;
+      btn.textContent = 'Downloading...';
+
+      if (statusText) statusText.textContent = 'Starting binary download...';
+      if (log) log.textContent += 'Starting binary download...\n';
+
+      await invoke('download_all_binaries');
+
+      btn.textContent = 'Downloaded!';
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }, 2000);
+
+      if (statusText) statusText.textContent = 'Binaries downloaded successfully';
+      if (statusPercent) statusPercent.textContent = '';
+      alert('Binaries downloaded successfully!');
+    } catch (error) {
+      console.error('Failed to download binaries:', error);
+      btn.textContent = originalText;
+      btn.disabled = false;
+      if (statusText) statusText.textContent = 'Binary download failed';
+      if (statusPercent) statusPercent.textContent = '';
+      alert(`Failed to download binaries: ${error}`);
+    }
+  }
+
   updateFontSizePreview() {
     const fontSize = this.fontSizeInput.value;
     const preview = document.querySelector('.font-size-preview');
@@ -141,7 +183,8 @@ class SettingsManager {
       return {
         download_dir: null,
         font_size: 14,
-        remember_queue: true
+        remember_queue: true,
+        use_system_binaries: true
       };
     }
   }

@@ -24,7 +24,8 @@ fn main() {
             fetch_video_title,
             check_binaries,
             download_ytdlp,
-            download_ffmpeg
+            download_ffmpeg,
+            download_all_binaries
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -96,10 +97,24 @@ async fn download_url(
     use tauri::Emitter;
 
     // Get path to yt-dlp binary (prefers bundled, falls back to system)
+    let config = ConfigManager::load_config(&app_handle)?;
     let status = BinaryManager::check_binaries(&app_handle)?;
 
     if !status.yt_dlp_installed {
-        return Err("yt-dlp not found. Please install yt-dlp or download binaries.".to_string());
+        if config.use_system_binaries {
+            return Err("yt-dlp not found. Please install yt-dlp from your package manager or enable binary downloads in Settings.".to_string());
+        } else {
+            return Err("Bundled binaries not found. Please download binaries from File menu > Download Binaries.".to_string());
+        }
+    }
+
+    // Warn about ffmpeg if needed for conversion
+    if mp3_only && !status.ffmpeg_installed {
+        if config.use_system_binaries {
+            return Err("ffmpeg not found. Audio conversion requires ffmpeg. Please install it from your package manager.".to_string());
+        } else {
+            return Err("ffmpeg not downloaded. Please download binaries from File menu > Download Binaries.".to_string());
+        }
     }
 
     let ytdlp_path = status.yt_dlp_path.unwrap_or_else(|| "yt-dlp".to_string());
@@ -259,4 +274,11 @@ async fn download_ytdlp(app_handle: tauri::AppHandle) -> Result<(), String> {
 #[tauri::command]
 async fn download_ffmpeg(app_handle: tauri::AppHandle) -> Result<(), String> {
     BinaryManager::download_ffmpeg(&app_handle).await
+}
+
+#[tauri::command]
+async fn download_all_binaries(app_handle: tauri::AppHandle) -> Result<(), String> {
+    BinaryManager::download_ytdlp(&app_handle).await?;
+    BinaryManager::download_ffmpeg(&app_handle).await?;
+    Ok(())
 }

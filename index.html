@@ -73,6 +73,20 @@
           Remember queue between sessions
         </label>
       </div>
+
+      <div class="setting-group">
+        <label>
+          <input type="checkbox" id="useSystemBinariesCheckbox" checked />
+          Use system binaries (yt-dlp/ffmpeg from PATH)
+        </label>
+        <p style="font-size: 0.9em; color: #666; margin: 5px 0 0 20px;">
+          When unchecked, uses downloaded binaries instead
+        </p>
+      </div>
+
+      <div class="setting-group">
+        <button id="downloadBinariesBtn">Download Binaries</button>
+      </div>
     </div>
     <div class="modal-footer">
       <button id="saveSettingsBtn">Save Settings</button>
