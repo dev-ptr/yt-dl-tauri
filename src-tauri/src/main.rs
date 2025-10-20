@@ -123,6 +123,10 @@ async fn download_url(
         args.push("-x");
         args.push("--audio-format");
         args.push("mp3");
+    } else {
+        // Force merge to MKV for video downloads
+        args.push("--merge-output-format");
+        args.push("mkv");
     }
     if enable_playlist { args.push("--yes-playlist"); } else { args.push("--no-playlist"); }
     if sponsorblock {
