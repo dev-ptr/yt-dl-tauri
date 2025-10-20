@@ -158,6 +158,20 @@ async fn download_url(
         args.push("--cookies-from-browser");
         args.push("firefox");
     }
+    // Create process group on Unix to ensure child processes (ffmpeg) can be killed
+    #[cfg(unix)]
+    let mut child = {
+        use std::os::unix::process::CommandExt;
+        Command::new(&ytdlp_path)
+            .args(&args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .process_group(0) // Create new process group
+            .spawn()
+            .map_err(|e| format!("Failed to spawn yt-dlp: {}", e))?
+    };
+
+    #[cfg(not(unix))]
     let mut child = Command::new(&ytdlp_path)
         .args(&args)
         .stdout(Stdio::piped())
@@ -310,15 +324,17 @@ fn cancel_download() -> Result<(), String> {
         if let Some(pid) = *pid_arc.lock().unwrap() {
             #[cfg(unix)]
             {
+                // Kill the entire process group (negative PID) to terminate ffmpeg children
                 unsafe {
-                    libc::kill(pid as i32, libc::SIGTERM);
+                    libc::kill(-(pid as i32), libc::SIGTERM);
                 }
             }
             #[cfg(windows)]
             {
                 use std::process::Command;
+                // Use /T flag to terminate the process tree including ffmpeg
                 let _ = Command::new("taskkill")
-                    .args(&["/PID", &pid.to_string(), "/F"])
+                    .args(&["/PID", &pid.to_string(), "/F", "/T"])
                     .output();
             }
             return Ok(());
