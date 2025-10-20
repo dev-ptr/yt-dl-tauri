@@ -96,10 +96,24 @@ async fn download_url(
     use tauri::Emitter;
 
     // Get path to yt-dlp binary (prefers bundled, falls back to system)
+    let config = ConfigManager::load_config(&app_handle)?;
     let status = BinaryManager::check_binaries(&app_handle)?;
 
     if !status.yt_dlp_installed {
-        return Err("yt-dlp not found. Please install yt-dlp or download binaries.".to_string());
+        if config.use_system_binaries {
+            return Err("yt-dlp not found. Please install yt-dlp from your package manager or enable binary downloads in Settings.".to_string());
+        } else {
+            return Err("Bundled binaries not found. Please download binaries from File menu > Download Binaries.".to_string());
+        }
+    }
+
+    // Warn about ffmpeg if needed for conversion
+    if mp3_only && !status.ffmpeg_installed {
+        if config.use_system_binaries {
+            return Err("ffmpeg not found. Audio conversion requires ffmpeg. Please install it from your package manager.".to_string());
+        } else {
+            return Err("ffmpeg not downloaded. Please download binaries from File menu > Download Binaries.".to_string());
+        }
     }
 
     let ytdlp_path = status.yt_dlp_path.unwrap_or_else(|| "yt-dlp".to_string());
