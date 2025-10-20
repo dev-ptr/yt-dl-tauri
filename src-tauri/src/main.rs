@@ -102,11 +102,13 @@ async fn download_url(
     }
 
     let ytdlp_path = status.yt_dlp_path.unwrap_or_else(|| "yt-dlp".to_string());
+    let ffmpeg_path = status.ffmpeg_path.unwrap_or_else(|| "ffmpeg".to_string());
 
     let output_template = format!("{}/%(title)s.%(ext)s", f_path);
 
     let mut args = vec![
         "--newline",
+        "--ffmpeg-location", &ffmpeg_path,
         "-o", &output_template,
         &url,
     ];
