@@ -321,22 +321,47 @@ async fn download_all_binaries(app_handle: tauri::AppHandle) -> Result<(), Strin
 fn cancel_download() -> Result<(), String> {
     let current = CURRENT_PROCESS.lock().unwrap();
     if let Some(ref pid_arc) = *current {
-        if let Some(pid) = *pid_arc.lock().unwrap() {
+        let mut pid_lock = pid_arc.lock().unwrap();
+        if let Some(pid) = *pid_lock {
             #[cfg(unix)]
             {
                 // Kill the entire process group (negative PID) to terminate ffmpeg children
-                unsafe {
-                    libc::kill(-(pid as i32), libc::SIGTERM);
+                let result = unsafe {
+                    libc::kill(-(pid as i32), libc::SIGTERM)
+                };
+
+                if result != 0 {
+                    let err = std::io::Error::last_os_error();
+                    // ESRCH (No such process) is acceptable - process already terminated
+                    if err.raw_os_error() != Some(libc::ESRCH) {
+                        return Err(format!("Failed to terminate process group: {}", err));
+                    }
+                } else {
+                    // Grace period: escalate to SIGKILL if process doesn't terminate
+                    std::thread::spawn(move || {
+                        std::thread::sleep(std::time::Duration::from_secs(2));
+                        unsafe {
+                            // Attempt SIGKILL - ignore errors (process may have exited)
+                            libc::kill(-(pid as i32), libc::SIGKILL);
+                        }
+                    });
                 }
             }
             #[cfg(windows)]
             {
                 use std::process::Command;
                 // Use /T flag to terminate the process tree including ffmpeg
-                let _ = Command::new("taskkill")
+                let result = Command::new("taskkill")
                     .args(&["/PID", &pid.to_string(), "/F", "/T"])
                     .output();
+
+                if let Err(e) = result {
+                    return Err(format!("Failed to execute taskkill: {}", e));
+                }
             }
+
+            // Clear PID atomically after kill attempt
+            *pid_lock = None;
             return Ok(());
         }
     }
