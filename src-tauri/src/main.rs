@@ -102,16 +102,22 @@ async fn download_url(
     }
 
     let ytdlp_path = status.yt_dlp_path.unwrap_or_else(|| "yt-dlp".to_string());
-    let ffmpeg_path = status.ffmpeg_path.unwrap_or_else(|| "ffmpeg".to_string());
 
     let output_template = format!("{}/%(title)s.%(ext)s", f_path);
 
     let mut args = vec![
         "--newline",
-        "--ffmpeg-location", &ffmpeg_path,
         "-o", &output_template,
         &url,
     ];
+
+    // Only pass --ffmpeg-location if we have a bundled ffmpeg (not system PATH)
+    if let Some(ref ffmpeg_path) = status.ffmpeg_path {
+        if !ffmpeg_path.eq("ffmpeg") {
+            args.insert(1, "--ffmpeg-location");
+            args.insert(2, ffmpeg_path);
+        }
+    }
 
     if mp3_only {
         args.push("-x");
