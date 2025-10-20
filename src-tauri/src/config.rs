@@ -85,13 +85,15 @@ impl ConfigManager {
         let home_dir = dirs_next::home_dir()
             .ok_or("Failed to get home directory")?;
         let default_dir = home_dir.join("Downloads");
-        
+
         // Create default directory if it doesn't exist
         if !default_dir.exists() {
             fs::create_dir_all(&default_dir)
                 .map_err(|e| format!("Failed to create default downloads directory: {}", e))?;
         }
-        
-        Ok(default_dir.to_string_lossy().to_string())
+
+        Ok(default_dir.to_str()
+            .ok_or("Downloads path contains invalid UTF-8")?
+            .to_string())
     }
 }

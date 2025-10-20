@@ -4,7 +4,10 @@
 )]
 
 mod config;
+mod binary_manager;
+
 use config::{ConfigManager, UserConfig};
+use binary_manager::{BinaryManager, BinaryStatus};
 
 use tauri::Window;
 fn main() {
@@ -13,12 +16,15 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())  
         .invoke_handler(tauri::generate_handler![
-            download_url, 
+            download_url,
             quit_app,
             get_config,
             update_config,
             get_download_dir,
-            fetch_video_title
+            fetch_video_title,
+            check_binaries,
+            download_ytdlp,
+            download_ffmpeg
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -76,6 +82,7 @@ fn get_download_dir(app_handle: tauri::AppHandle) -> Result<String, String> {
 }
 #[tauri::command]
 async fn download_url(
+    app_handle: tauri::AppHandle,
     window: Window,
     url: String,
     f_path: String,
@@ -87,6 +94,15 @@ async fn download_url(
     use std::process::{Command, Stdio};
     use tauri::Emitter;
 
+    // Get path to yt-dlp binary (prefers bundled, falls back to system)
+    let status = BinaryManager::check_binaries(&app_handle)?;
+
+    if !status.yt_dlp_installed {
+        return Err("yt-dlp not found. Please install yt-dlp or download binaries.".to_string());
+    }
+
+    let ytdlp_path = status.yt_dlp_path.unwrap_or_else(|| "yt-dlp".to_string());
+
     let output_template = format!("{}/%(title)s.%(ext)s", f_path);
 
     let mut args = vec![
@@ -95,17 +111,29 @@ async fn download_url(
         &url,
     ];
 
+    // Only pass --ffmpeg-location if we have a bundled ffmpeg (not system PATH)
+    if let Some(ref ffmpeg_path) = status.ffmpeg_path {
+        if !ffmpeg_path.eq("ffmpeg") {
+            args.insert(1, "--ffmpeg-location");
+            args.insert(2, ffmpeg_path);
+        }
+    }
+
     if mp3_only {
         args.push("-x");
         args.push("--audio-format");
         args.push("mp3");
+    } else {
+        // Force merge to MKV for video downloads
+        args.push("--merge-output-format");
+        args.push("mkv");
     }
     if enable_playlist { args.push("--yes-playlist"); } else { args.push("--no-playlist"); }
     if sponsorblock {
         args.push("--sponsorblock-remove");
         args.push("all");
     }
-    let mut child = Command::new("yt-dlp")
+    let mut child = Command::new(&ytdlp_path)
         .args(&args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -125,7 +153,7 @@ async fn download_url(
         let _ = window.emit("download-log", l.clone());
 
         if l.contains("[download]") && l.contains("Destination:") {
-            last_percent = 0; // Reset for actual download phase
+            last_percent = 0;
         }
 
         if let Some(p) = parse_progress_percent(&l) {
@@ -155,12 +183,46 @@ async fn download_url(
     let code = status.code().unwrap_or(-1);
 
     if code == 0 {
+        // Clear macOS quarantine attribute from downloaded files
+        #[cfg(target_os = "macos")]
+        if let Err(e) = clear_quarantine_attr(&f_path) {
+            eprintln!("Warning: Failed to clear quarantine attribute: {}", e);
+        }
+
         let _ = window.emit("download-complete", code);
         Ok(())
     } else {
         let _ = window.emit("download-error", format!("yt-dlp exited with code {}", code));
         Err(format!("yt-dlp exited with code {}", code))
     }
+}
+
+/// Clears macOS Gatekeeper quarantine attribute from files in directory
+#[cfg(target_os = "macos")]
+fn clear_quarantine_attr(dir_path: &str) -> Result<(), String> {
+    use std::process::Command;
+    use std::path::Path;
+
+    let path = Path::new(dir_path);
+    if !path.exists() {
+        return Err(format!("Path does not exist: {}", dir_path));
+    }
+
+    // Run: xattr -dr com.apple.quarantine <path>
+    let output = Command::new("xattr")
+        .args(["-dr", "com.apple.quarantine", dir_path])
+        .output()
+        .map_err(|e| format!("Failed to execute xattr: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        // Non-zero exit is OK if attribute doesn't exist
+        if !stderr.contains("No such xattr") {
+            return Err(format!("xattr failed: {}", stderr));
+        }
+    }
+
+    Ok(())
 }
 
 fn parse_progress_percent(line: &str) -> Option<u8> {
@@ -177,4 +239,19 @@ fn parse_progress_percent(line: &str) -> Option<u8> {
         }
     }
     None
+}
+
+#[tauri::command]
+fn check_binaries(app_handle: tauri::AppHandle) -> Result<BinaryStatus, String> {
+    BinaryManager::check_binaries(&app_handle)
+}
+
+#[tauri::command]
+async fn download_ytdlp(app_handle: tauri::AppHandle) -> Result<(), String> {
+    BinaryManager::download_ytdlp(&app_handle).await
+}
+
+#[tauri::command]
+async fn download_ffmpeg(app_handle: tauri::AppHandle) -> Result<(), String> {
+    BinaryManager::download_ffmpeg(&app_handle).await
 }

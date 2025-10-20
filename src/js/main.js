@@ -4,6 +4,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { setupMenu } from "./menu.js";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { SettingsManager } from "./settings.js";
+import { BinaryManager } from "./binaries.js";
 
 let appWindow;
 let settingsManager;
@@ -14,19 +15,82 @@ async function initializeApp() {
   window.settingsManager = settingsManager;
 }
 
+// DOM elements - must be defined before functions that use them
 const toggleBtn = document.getElementById("toggleLogBtn");
 const logContainer = document.getElementById("logContainer");
+const removeSelect = document.getElementById("removeSelect");
+const urlInput = document.getElementById('urlInput');
+const mp3OnlyCheckbox = document.getElementById('mp3Only');
+const sponsorblockCheckbox = document.getElementById('sponsorblock');
+const enablePlayistCheckbox = document.getElementById('enablePlaylist');
+const downloadBtn = document.getElementById('downloadBtn');
+const addToQueueBtn = document.getElementById('addToQueueBtn');
+const browseBtn = document.getElementById('browseBtn');
+const folderPath = document.getElementById('folderInput');
+const clearQueueBtn = document.getElementById('clearQueueBtn');
+const log = document.getElementById('log');
+const statusText = document.getElementById("statusText");
+const statusPercent = document.getElementById("statusPercent");
+
+// State variables
+const queue = [];
+let processing = false;
 let isLogVisible = false;
 let editingIndex = -1;
 let originalUrl = '';
 let isProgrammaticChange = false;
+let isDownloading = false;
+let currentItem = null;
 
+
+async function checkAndDownloadBinaries() {
+  try {
+    const status = await BinaryManager.checkBinaries();
+
+    if (!status.yt_dlp_installed || !status.ffmpeg_installed) {
+      const missing = [];
+      if (!status.yt_dlp_installed) missing.push('yt-dlp');
+      if (!status.ffmpeg_installed) missing.push('ffmpeg');
+
+      const message = `Required binaries not found: ${missing.join(', ')}\n\nDownload now? This may take a few minutes.`;
+
+      if (confirm(message)) {
+        log.textContent += 'Downloading required binaries...\n';
+
+        try {
+          if (!status.yt_dlp_installed) {
+            log.textContent += 'Downloading yt-dlp...\n';
+            await BinaryManager.downloadYtDlp();
+            log.textContent += 'yt-dlp downloaded successfully\n';
+          }
+
+          if (!status.ffmpeg_installed) {
+            log.textContent += 'Downloading ffmpeg...\n';
+            await BinaryManager.downloadFfmpeg();
+            log.textContent += 'ffmpeg downloaded successfully\n';
+          }
+
+          log.textContent += 'All binaries ready!\n';
+        } catch (error) {
+          log.textContent += `Failed to download binaries: ${error}\n`;
+          alert(`Failed to download binaries: ${error}\n\nPlease install yt-dlp and ffmpeg manually.`);
+        }
+      } else {
+        log.textContent += 'Binary download cancelled. Some features may not work.\n';
+      }
+    } else {
+      console.log('All binaries installed:', status);
+    }
+  } catch (error) {
+    console.error('Failed to check binaries:', error);
+  }
+}
 
 async function loadInitialSettings() {
   try {
     const config = await invoke('get_config');
     document.documentElement.style.setProperty('--font-size', `${config.font_size}px`);
-    
+
     // Set download directory
     if (config.download_dir) {
       document.getElementById('folderInput').value = config.download_dir;
@@ -34,10 +98,10 @@ async function loadInitialSettings() {
       const defaultDir = await invoke('get_download_dir');
       document.getElementById('folderInput').value = defaultDir;
     }
-    
+
     // Load saved queue if remember_queue is enabled
     await loadQueueFromStorage();
-    
+
     console.log('Settings loaded:', config);
   } catch (error) {
     console.error('Failed to load initial settings:', error);
@@ -47,6 +111,7 @@ async function loadInitialSettings() {
 document.addEventListener('DOMContentLoaded', async () => {
   await initializeApp();
   await loadInitialSettings();
+  await checkAndDownloadBinaries();
 });
 
 toggleBtn.addEventListener("click", async () => {
@@ -67,27 +132,6 @@ toggleBtn.addEventListener("click", async () => {
 });
 
 setupMenu();
-// DOM elements
-const queue = [];
-let processing = false;
-
-const removeSelect = document.getElementById("removeSelect");
-const urlInput = document.getElementById('urlInput')
-const mp3OnlyCheckbox = document.getElementById('mp3Only')
-const sponsorblockCheckbox = document.getElementById('sponsorblock')
-const enablePlayistCheckbox = document.getElementById('enablePlaylist')
-const downloadBtn = document.getElementById('downloadBtn')
-const addToQueueBtn = document.getElementById('addToQueueBtn')
-const browseBtn = document.getElementById('browseBtn')
-const folderPath = document.getElementById('folderInput')
-const clearQueueBtn = document.getElementById('clearQueueBtn')
-const log = document.getElementById('log')
-const statusText = document.getElementById("statusText");
-const statusPercent = document.getElementById("statusPercent");
-
-let isDownloading = false;
-let currentItem = null; 
-
 
 clearQueueBtn.addEventListener('click', async () => {
   queue.length = 0;  
