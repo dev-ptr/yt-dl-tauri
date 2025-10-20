@@ -15,12 +15,32 @@ async function initializeApp() {
   window.settingsManager = settingsManager;
 }
 
+// DOM elements - must be defined before functions that use them
 const toggleBtn = document.getElementById("toggleLogBtn");
 const logContainer = document.getElementById("logContainer");
+const removeSelect = document.getElementById("removeSelect");
+const urlInput = document.getElementById('urlInput');
+const mp3OnlyCheckbox = document.getElementById('mp3Only');
+const sponsorblockCheckbox = document.getElementById('sponsorblock');
+const enablePlayistCheckbox = document.getElementById('enablePlaylist');
+const downloadBtn = document.getElementById('downloadBtn');
+const addToQueueBtn = document.getElementById('addToQueueBtn');
+const browseBtn = document.getElementById('browseBtn');
+const folderPath = document.getElementById('folderInput');
+const clearQueueBtn = document.getElementById('clearQueueBtn');
+const log = document.getElementById('log');
+const statusText = document.getElementById("statusText");
+const statusPercent = document.getElementById("statusPercent");
+
+// State variables
+const queue = [];
+let processing = false;
 let isLogVisible = false;
 let editingIndex = -1;
 let originalUrl = '';
 let isProgrammaticChange = false;
+let isDownloading = false;
+let currentItem = null;
 
 
 async function checkAndDownloadBinaries() {
@@ -112,27 +132,6 @@ toggleBtn.addEventListener("click", async () => {
 });
 
 setupMenu();
-// DOM elements
-const queue = [];
-let processing = false;
-
-const removeSelect = document.getElementById("removeSelect");
-const urlInput = document.getElementById('urlInput')
-const mp3OnlyCheckbox = document.getElementById('mp3Only')
-const sponsorblockCheckbox = document.getElementById('sponsorblock')
-const enablePlayistCheckbox = document.getElementById('enablePlaylist')
-const downloadBtn = document.getElementById('downloadBtn')
-const addToQueueBtn = document.getElementById('addToQueueBtn')
-const browseBtn = document.getElementById('browseBtn')
-const folderPath = document.getElementById('folderInput')
-const clearQueueBtn = document.getElementById('clearQueueBtn')
-const log = document.getElementById('log')
-const statusText = document.getElementById("statusText");
-const statusPercent = document.getElementById("statusPercent");
-
-let isDownloading = false;
-let currentItem = null; 
-
 
 clearQueueBtn.addEventListener('click', async () => {
   queue.length = 0;  

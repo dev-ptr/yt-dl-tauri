@@ -430,14 +430,18 @@ impl BinaryManager {
             yt_dlp_installed: ytdlp_valid,
             ffmpeg_installed: ffmpeg_valid,
             yt_dlp_path: if ytdlp_bundled {
-                Some(ytdlp_path.to_string_lossy().to_string())
+                Some(ytdlp_path.to_str()
+                    .ok_or("yt-dlp path contains invalid UTF-8")?
+                    .to_string())
             } else if ytdlp_system {
                 Some("yt-dlp".to_string())
             } else {
                 None
             },
             ffmpeg_path: if ffmpeg_bundled {
-                Some(ffmpeg_path.to_string_lossy().to_string())
+                Some(ffmpeg_path.to_str()
+                    .ok_or("ffmpeg path contains invalid UTF-8")?
+                    .to_string())
             } else if ffmpeg_system {
                 Some("ffmpeg".to_string())
             } else {

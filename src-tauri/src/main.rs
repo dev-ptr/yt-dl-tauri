@@ -173,12 +173,46 @@ async fn download_url(
     let code = status.code().unwrap_or(-1);
 
     if code == 0 {
+        // Clear macOS quarantine attribute from downloaded files
+        #[cfg(target_os = "macos")]
+        if let Err(e) = clear_quarantine_attr(&f_path) {
+            eprintln!("Warning: Failed to clear quarantine attribute: {}", e);
+        }
+
         let _ = window.emit("download-complete", code);
         Ok(())
     } else {
         let _ = window.emit("download-error", format!("yt-dlp exited with code {}", code));
         Err(format!("yt-dlp exited with code {}", code))
     }
+}
+
+/// Clears macOS Gatekeeper quarantine attribute from files in directory
+#[cfg(target_os = "macos")]
+fn clear_quarantine_attr(dir_path: &str) -> Result<(), String> {
+    use std::process::Command;
+    use std::path::Path;
+
+    let path = Path::new(dir_path);
+    if !path.exists() {
+        return Err(format!("Path does not exist: {}", dir_path));
+    }
+
+    // Run: xattr -dr com.apple.quarantine <path>
+    let output = Command::new("xattr")
+        .args(["-dr", "com.apple.quarantine", dir_path])
+        .output()
+        .map_err(|e| format!("Failed to execute xattr: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        // Non-zero exit is OK if attribute doesn't exist
+        if !stderr.contains("No such xattr") {
+            return Err(format!("xattr failed: {}", stderr));
+        }
+    }
+
+    Ok(())
 }
 
 fn parse_progress_percent(line: &str) -> Option<u8> {
